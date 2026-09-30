@@ -95,8 +95,8 @@ const MORE=[
  ["douleurs","Douleurs","Suivi par zone du corps"],["objectifs","Objectifs & badges","Cibles et récompenses"],
  ["technique","Carnet technique","Objectifs de tes entraînements"],["nutrition","Nutrition","Calories, protéines, eau"],
  ["programme","Le programme","Logique, blocs, règles"],["guide","Guide","Échauffement, prévention"],
- ["calendrier","Calendrier iPhone","Ajouter les séances"],["bilan","Bilan pour Claude","Faire analyser ton mois"],
- ["reglages","Réglages","Profil, thème, sauvegarde, cloud"]];
+ ["calendrier","Calendrier","Ajouter les séances"],["bilan","Bilan à partager","Pour ton coach ou une IA"],
+ ["reglages","Réglages","Profil, programme, sauvegarde, compte"]];
 function renderMore(){
   if(state.sub&&SUBS[state.sub])return `<button class="back" type="button" data-sub="">‹ Plus</button>`+SUBS[state.sub]();
   return `<div class="tiles">${MORE.map(([k,t,d])=>`<button class="tile" type="button" data-sub="${k}"><b>${t}</b><span>${d}</span></button>`).join("")}</div>`;
@@ -154,15 +154,15 @@ SUBS.tournois=()=>{
   <section class="card stack"><div><div class="eyebrow">Après chaque tournoi</div><h2>Ajouter un tournoi</h2></div>
    <form class="stack" data-tournoi="1">
     <div class="form-row"><label>Date<input type="date" name="date" value="${todayIso()}"></label>
-     <label>Catégorie<select name="cat">${["P25","P100","P250","P500","P1000"].map(c=>`<option ${c==="P250"?"selected":""}>${c}</option>`).join("")}</select></label>
-     <label>Club / lieu<input name="lieu" placeholder="ex. Montauban"></label>
+     <label>Catégorie<select name="cat">${LEVELS.map(c=>`<option ${c===(S_().level||"P250")?"selected":""}>${c}</option>`).join("")}</select></label>
+     <label>Club / lieu<input name="lieu" placeholder="ex. Padel Club"></label>
      <label>Partenaire<input name="partner"></label></div>
     <div class="form-row"><label>Tour atteint<select name="res">${ROUNDS.map(r=>`<option>${r}</option>`).join("")}</select></label>
      <label>Points FFT gagnés<input type="number" inputmode="numeric" name="pts"></label>
-     <label>Classement après<input type="number" inputmode="numeric" name="rank" placeholder="ex. 4800"></label></div>
+     <label>Classement après<input type="number" inputmode="numeric" name="rank" placeholder="ex. 3500"></label></div>
     <div><div class="eyebrow">Matchs</div><div class="matches">${draft.matches.map((mm,i)=>`<div class="mblock"><div class="mrow"><span class="num">${i+1}</span><input name="ms${i}" value="${esc(mm.s||"")}" placeholder="Score, ex. 6-4 3-6 7-5"><div class="ckopts"><button type="button" data-mres="${i}|V" aria-pressed="${mm.r==="V"}">V</button><button type="button" data-mres="${i}|D" aria-pressed="${mm.r==="D"}">D</button></div></div>
       <input name="mo${i}" list="opplist" value="${esc(mm.o||"")}" placeholder="Adversaires (ex. Martin / Durand)">
-      <input name="mn${i}" value="${esc(mm.note||"")}" placeholder="Ce qui n'a pas marché (ex. bandejas trop courtes)">
+      <input name="mn${i}" value="${esc(mm.note||"")}" placeholder="Ce qui n'a pas marché (ex. bandejas courtes)">
       <details><summary>Statistiques du match (facultatif)</summary><div class="form-row"><label>Points gagnants<input type="number" inputmode="numeric" name="mw${i}" value="${esc(mm.w??"")}"></label><label>Fautes directes<input type="number" inputmode="numeric" name="mue${i}" value="${esc(mm.ue??"")}"></label><label>Smashs gagnants<input type="number" inputmode="numeric" name="msm${i}" value="${esc(mm.sm??"")}"></label><label>Doubles fautes<input type="number" inputmode="numeric" name="mdf${i}" value="${esc(mm.df??"")}"></label></div></details></div>`).join("")}</div>
      <datalist id="opplist">${Object.values(data.opps).map(o=>`<option value="${esc(o.name)}">`).join("")}</datalist>
      <button class="chip-btn" type="button" data-maddmatch="1">+ Ajouter un match</button></div>
@@ -172,7 +172,7 @@ SUBS.tournois=()=>{
     <div><button class="btn" type="submit">Enregistrer le tournoi</button></div></form></section>
   <section class="card stack"><div><div class="eyebrow">Plus c'est bas, mieux c'est</div><h2>Classement FFT</h2></div>
    <form class="inline" data-rank="1"><input type="number" inputmode="numeric" name="rank" placeholder="Classement actuel"><input type="date" name="date" value="${todayIso()}"><button class="btn small" type="submit">Ajouter</button></form>
-   ${lineChart([{pts:rk,color:"var(--b3)",area:false}],{unit:"e",invert:true,target:goalR,empty:"Ajoute ton classement actuel (ex. 5000).",dec:0})}</section>
+   ${lineChart([{pts:rk,color:"var(--b3)",area:false}],{unit:"e",invert:true,target:goalR,empty:"Ajoute ton classement actuel.",dec:0})}</section>
   ${tournExtraStats()}
   <section class="card stack"><div><div class="eyebrow">Préparation physique et résultats</div><h2>Analyse</h2></div>
    ${insight?`<p>${insight}</p>`:`<p class="muted small">L'analyse apparaît à partir de 4 tournois enregistrés pendant le programme.</p>`}
@@ -258,12 +258,13 @@ SUBS.nutrition=()=>{
   const T=nutritionTargets(),s=S_(),t=todayIso(),n=data.nutri[t]||{},glasses=Math.round(T.water*4);
   const last14=Array.from({length:14},(_,i)=>addDays(t,-i)),protDays=last14.filter(d=>(data.nutri[d]||{}).prot).length;
   return `<section class="card stack"><div><div class="eyebrow">Calculé pour ${fmt(T.w)} kg, ${s.height} cm, ${s.age} ans</div><h2>Tes repères</h2></div>
-   <div class="kpis"><div class="kpi"><div class="v num">${T.kcal}</div><div class="k">kcal / jour (objectif perte de poids)</div></div><div class="kpi"><div class="v num">${T.prot} g</div><div class="k">protéines / jour (1,8 g/kg)</div></div><div class="kpi"><div class="v num">${fmt(T.water)} L</div><div class="k">eau / jour, plus les jours de match</div></div><div class="kpi"><div class="v num">${T.tdee}</div><div class="k">dépense estimée (kcal)</div></div></div>
-   <p class="muted small">Estimation (formule de Mifflin-St Jeor × niveau d'activité, moins ${s.deficit} kcal). Ajuste dans Réglages. Ce sont des repères généraux, pas un suivi diététique. Si ton poids baisse de plus de 0,8 kg par semaine ou que tes tests chutent, mange un peu plus.</p></section>
+   <div class="kpis"><div class="kpi"><div class="v num">${T.kcal}</div><div class="k">kcal / jour (${+s.deficit?"objectif perte de poids":"maintien"})</div></div><div class="kpi"><div class="v num">${T.prot} g</div><div class="k">protéines / jour (1,8 g/kg)</div></div><div class="kpi"><div class="v num">${fmt(T.water)} L</div><div class="k">eau / jour, plus les jours de match</div></div><div class="kpi"><div class="v num">${T.tdee}</div><div class="k">dépense estimée (kcal)</div></div></div>
+   <p class="muted small">Estimation (formule de Mifflin-St Jeor × niveau d'activité${+s.deficit?`, moins ${s.deficit} kcal`:""}). Ajuste dans Réglages. Ce sont des repères généraux, pas un suivi diététique. Si ton poids baisse de plus de 0,8 kg par semaine ou que tes tests chutent, mange un peu plus.</p></section>
   <section class="card stack"><div><div class="eyebrow">Aujourd'hui</div><h2>Suivi du jour</h2></div>
    <div class="nq"><button class="chip-btn" type="button" data-nutri="prot" aria-pressed="${!!n.prot}">${n.prot?"✓ ":""}Protéines atteintes</button><button class="chip-btn" type="button" data-nutri="veg" aria-pressed="${!!n.veg}">${n.veg?"✓ ":""}5 fruits et légumes</button><button class="chip-btn" type="button" data-nutri="noalc" aria-pressed="${!!n.noalc}">${n.noalc?"✓ ":""}Sans alcool</button></div>
    <div class="water"><span>Eau</span><button class="rbtn" type="button" data-water="-1" aria-label="Retirer un verre">−</button><b class="num">${n.water||0}/${glasses}</b><button class="rbtn" type="button" data-water="1" aria-label="Ajouter un verre">+</button><span class="muted small">verres de 25 cl</span></div>
-   <div class="water"><span>Café</span><button class="rbtn" type="button" data-cnt="cafe|-1">−</button><b class="num">${n.cafe||0}</b><button class="rbtn" type="button" data-cnt="cafe|1">+</button><span>Alcool (verres)</span><button class="rbtn" type="button" data-cnt="alcool|-1">−</button><b class="num">${n.alcool||0}</b><button class="rbtn" type="button" data-cnt="alcool|1">+</button></div>
+   <div class="water"><span>Café</span><button class="rbtn" type="button" data-cnt="cafe|-1">−</button><b class="num">${n.cafe||0}</b><button class="rbtn" type="button" data-cnt="cafe|1">+</button></div>
+   <div class="water"><span>Alcool</span><button class="rbtn" type="button" data-cnt="alcool|-1">−</button><b class="num">${n.alcool||0}</b><button class="rbtn" type="button" data-cnt="alcool|1">+</button></div>
    <p class="muted small">Protéines atteintes ${protDays} jours sur les 14 derniers.</p>${habitsInsight()}</section>
   <section class="card"><div class="sess-head"><div><div class="eyebrow">Menus et liste de courses</div><h3>Repas de la semaine</h3></div><button class="btn small" data-sub="repas">Ouvrir</button></div></section>
   <section class="card stack"><h3>Répartir les protéines (${T.prot} g)</h3><ul class="clean"><li>Petit-déjeuner : 3 œufs ou fromage blanc 250 g (≈ 25–30 g)</li><li>Déjeuner : 150–180 g de viande, poisson ou volaille (≈ 40 g)</li><li>Collation : skyr ou shaker de whey (≈ 20–25 g)</li><li>Dîner : 150–180 g de protéine maigre ou légumineuses + œufs (≈ 40 g)</li></ul></section>
@@ -283,9 +284,9 @@ SUBS.tournoi=()=>{
 };
 SUBS.programme=()=>`
   <section class="card stack"><div class="eyebrow">La logique</div><h2>Des cycles de 12 semaines</h2>
-   <p>Tu joues en tournoi presque chaque week-end et tu t'entraînes au padel le mardi et le jeudi. Le programme se greffe sur ce rythme : une grosse séance le mercredi, deux compléments courts après tes entraînements padel, le lundi pour récupérer et la veille du tournoi pour arriver frais. Chaque bloc de 4 semaines finit par une semaine allégée avec des tests. Après 12 semaines, un nouveau cycle recommence avec des charges recalées sur tes progrès.</p></section>
+   <p>Le programme est pensé pour un joueur de compétition qui s'entraîne au padel deux fois par semaine (mardi et jeudi par défaut) et joue des tournois le week-end. Il se greffe sur ce rythme : une grosse séance le mercredi, deux compléments courts après tes entraînements padel, le lundi pour récupérer et la veille du tournoi pour arriver frais. Chaque bloc de 4 semaines finit par une semaine allégée avec des tests. Après 12 semaines, un nouveau cycle recommence avec des charges recalées sur tes progrès.</p></section>
   <div class="grid3">${BLOCKS.map((b,i)=>`<section class="card block" style="--bc:${b.color}"><div class="wks">Semaines ${i*4+1}–${i*4+4} du cycle</div><h3>${esc(b.name)}</h3><p class="muted small">${esc(b.goal)}</p><ul class="clean small">${b.keys.map(k=>`<li>${esc(k)}</li>`).join("")}</ul></section>`).join("")}</div>
-  <section class="card"><h3 style="margin-bottom:10px">Semaine type (tournoi le samedi)</h3><div class="tbl-wrap"><table class="tmpl"><tbody>
+  <section class="card"><h3 style="margin-bottom:10px">Semaine type (tournoi le week-end)</h3><div class="tbl-wrap"><table class="tmpl"><tbody>
    <tr><td>Lundi</td><td>Récup active + cardio zone 2 + mobilité</td></tr><tr><td>Mardi</td><td>Padel, puis 20 min prévention & gainage</td></tr><tr><td>Mercredi</td><td>Séance principale : sauts, lancers puis force</td></tr><tr><td>Jeudi</td><td>Padel, puis 15 min finisher cardio / déplacements</td></tr><tr><td>Vendredi</td><td>Mobilité + activation 8 min, ou repos</td></tr><tr><td>Sam–Dim</td><td>Tournoi</td></tr></tbody></table></div></section>
   <section class="card"><h3 style="margin-bottom:10px">Règles d'ajustement</h3><ul class="clean">
    <li><b>Jour du tournoi :</b> choisis-le chaque semaine (Aujourd'hui ou Semaine), le programme s'adapte tout seul.</li>
@@ -304,7 +305,7 @@ SUBS.guide=()=>`<div class="grid2 guide">
    <section class="card"><h3>Charge d'entraînement</h3><p class="small">Chaque séance vaut « durée × RPE » (unités arbitraires). Le ratio compare ta semaine à la moyenne des 4 précédentes : entre 0,8 et 1,3, c'est la zone idéale. Au-dessus de 1,3, le risque de blessure augmente.</p></section></div>`;
 SUBS.calendrier=()=>{
   const s=S_(),cw=curWeek(),endCycle=cycleOf(cw)*12;
-  return `<section class="card stack"><div><div class="eyebrow">Rappels dans ton calendrier iPhone</div><h2>Calendrier</h2></div>
+  return `<section class="card stack"><div><div class="eyebrow">Rappels dans ton calendrier</div><h2>Calendrier</h2></div>
    <p class="small">Ajoute tes séances dans l'app Calendrier avec une alerte 30 minutes avant (la veille au soir pour les tournois). Choisis d'abord le jour de tes tournois dans chaque semaine : l'export en tient compte. Si tu changes quelque chose, refais un export.</p>
    <div><div class="eyebrow">Période</div><div class="filters">${[["1","Semaine en cours"],["4","4 prochaines semaines"],["cycle",`Jusqu'à la fin du cycle (S${endCycle})`]].map(([v,l])=>`<button data-icsr="${v}" aria-pressed="${state.icsRange===v}">${l}</button>`).join("")}</div></div>
    <div><div class="eyebrow">Heure habituelle par jour</div><div class="form-row">${DAYS.slice(0,5).map(([d,l])=>`<label>${l}<input type="time" data-time="${d}" value="${esc(s.times[d])}"></label>`).join("")}</div></div>
@@ -313,35 +314,50 @@ SUBS.calendrier=()=>{
    <p class="muted small">Sur iPhone, « Ajouter au calendrier » ouvre la fenêtre d'import : touche « Tout ajouter ». Si rien ne s'ouvre, utilise « Partager le fichier » puis choisis Calendrier.</p></section>`;
 };
 SUBS.bilan=()=>{const txt=bilanText(state.bilanDays);
-  return `<section class="card stack"><div><div class="eyebrow">Pour ajuster le programme avec Claude</div><h2>Bilan à partager</h2></div>
-   <p class="small">Copie ce résumé et colle-le dans une conversation avec Claude : il pourra analyser tes charges, ta forme, tes tournois et tes douleurs, et te proposer des ajustements.</p>
+  return `<section class="card stack"><div><div class="eyebrow">Pour ajuster ton programme</div><h2>Bilan à partager</h2></div>
+   <p class="small">Copie ce résumé et envoie-le à ton coach, ou colle-le dans un assistant IA : il pourra analyser tes charges, ta forme, tes tournois et tes douleurs, et te proposer des ajustements.</p>
    <div class="filters">${[7,30,90].map(d=>`<button data-bilan="${d}" aria-pressed="${state.bilanDays===d}">${d} jours</button>`).join("")}</div>
    <textarea id="bilantxt" rows="14" readonly>${esc(txt)}</textarea>
    <div class="actions"><button class="btn" type="button" data-copybilan="1">Copier le bilan</button></div></section>`;};
-SUBS.reglages=()=>{const s=S_(),c=Sync.cfg(),con=Sync.connected();
-  return `<section class="card stack"><div><div class="eyebrow">Profil</div><h2>Réglages</h2></div>
-   <form class="stack" data-settings="1">
-    <div class="form-row"><label>Début du programme (un lundi)<input type="date" name="start" value="${esc(s.start)}"></label>
-     <label>Côté de jeu<select name="side"><option value="gauche" ${s.side==="gauche"?"selected":""}>Gauche</option><option value="droite" ${s.side==="droite"?"selected":""}>Droite</option></select></label>
-     <label>Thème<select name="theme"><option value="auto" ${s.theme==="auto"?"selected":""}>Automatique</option><option value="light" ${s.theme==="light"?"selected":""}>Clair</option><option value="dark" ${s.theme==="dark"?"selected":""}>Sombre</option></select></label>
-     <label>Annonces vocales<select name="voice"><option value="1" ${s.voice?"selected":""}>Activées</option><option value="0" ${!s.voice?"selected":""}>Désactivées</option></select></label></div>
-    <div class="form-row"><label>Taille (cm)<input type="number" name="height" value="${esc(s.height)}"></label><label>Âge<input type="number" name="age" value="${esc(s.age)}"></label>
-     <label>Sexe<select name="sex"><option value="H" ${s.sex==="H"?"selected":""}>Homme</option><option value="F" ${s.sex==="F"?"selected":""}>Femme</option></select></label>
-     <label>Activité<select name="activity">${[[1.4,"Modérée"],[1.55,"Sportive (3–5 séances)"],[1.7,"Très sportive"]].map(([v,l])=>`<option value="${v}" ${+s.activity===v?"selected":""}>${l}</option>`).join("")}</select></label>
-     <label>Déficit visé (kcal)<select name="deficit">${[0,250,400,500].map(v=>`<option value="${v}" ${+s.deficit===v?"selected":""}>${v?"−"+v:"Maintien"}</option>`).join("")}</select></label></div>
-    <div><button class="btn" type="submit">Enregistrer les réglages</button></div></form></section>
-  <section class="card stack"><div><div class="eyebrow">Sur ce téléphone</div><h2>Sauvegarde</h2></div>
-   <p class="small">Dernière sauvegarde : ${data.meta.main.lastExport?fr(data.meta.main.lastExport):"jamais"}. Enregistre le fichier dans Fichiers ou iCloud Drive.</p>
-   <div class="actions"><button class="btn" type="button" data-export="1">Exporter une sauvegarde</button><label class="btn ghost filebtn">Restaurer<input type="file" id="file-import" accept="application/json,.json" hidden></label></div></section>
-  <section class="card stack"><div><div class="eyebrow">Facultatif · sauvegarde automatique et plusieurs appareils</div><h2>Synchronisation cloud</h2></div>
-   <p class="small">Utilise ton propre projet Supabase (gratuit). La marche à suivre et le script SQL sont dans le fichier LISEZMOI fourni avec l'app.</p>
+const LEVELS=["P25","P100","P250","P500","P1000","P1500","P2000"];
+const TDAY_OPTS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"]];
+const opt=(arr,cur)=>arr.map(([v,l])=>`<option value="${esc(v)}" ${String(cur)===String(v)?"selected":""}>${esc(l)}</option>`).join("");
+function accountCard(){if(!cloudOn())return "";const c=Sync.cfg(),con=Sync.connected();
+  return `<section class="card stack"><div><div class="eyebrow">Facultatif · sauvegarde automatique et plusieurs appareils</div><h2>Mon compte</h2></div>
+   <p class="small">Avec un compte, tes données sont sauvegardées en ligne et synchronisées entre ton téléphone et ton ordinateur. Sans compte, elles restent uniquement sur cet appareil.</p>
    ${con?`<p><b>Connecté</b> : ${esc(c.email||"")}</p><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p><div class="actions"><button class="btn" type="button" data-sync="now">Synchroniser maintenant</button><button class="btn ghost" type="button" data-sync="out">Se déconnecter</button></div>`
-    :`<form class="stack" data-syncform="1"><div class="form-row"><label>URL du projet<input name="url" value="${esc(c.url||"")}" placeholder="https://xxxx.supabase.co" autocapitalize="off" autocorrect="off"></label><label>Clé publique (anon)<input name="key" value="${esc(c.key||"")}" autocapitalize="off" autocorrect="off"></label></div>
-     <div class="form-row"><label>E-mail<input type="email" name="email" value="${esc(c.email||"")}" autocomplete="username"></label><label>Mot de passe<input type="password" name="pw" autocomplete="current-password"></label></div>
-     <div class="actions"><button class="btn" type="submit" name="act" value="in">Se connecter</button><button class="btn ghost" type="submit" name="act" value="up">Créer mon compte</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p></form>`}
-  </section>
+    :`<form class="stack" data-syncform="1"><div class="form-row"><label>E-mail<input type="email" name="email" value="${esc(c.email||"")}" autocomplete="username" autocapitalize="off"></label><label>Mot de passe<input type="password" name="pw" autocomplete="current-password" minlength="6"></label></div>
+     <div class="actions"><button class="btn" type="submit" name="act" value="in">Se connecter</button><button class="btn ghost" type="submit" name="act" value="up">Créer mon compte</button><button class="linkbtn" type="submit" name="act" value="recover">Mot de passe oublié ?</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p></form>`}
+  </section>`;}
+SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
+  return `<form class="stack" data-settings="1">
+   <section class="card stack"><div><div class="eyebrow">Toi</div><h2>Profil</h2></div>
+    <div class="form-row"><label>Prénom<input name="name" value="${esc(s.name||"")}" autocomplete="given-name" maxlength="30"></label>
+     <label>Sexe<select name="sex">${opt([["H","Homme"],["F","Femme"]],s.sex)}</select></label>
+     <label>Âge<input type="number" inputmode="numeric" name="age" min="12" max="90" value="${esc(s.age??"")}"></label>
+     <label>Taille (cm)<input type="number" inputmode="numeric" name="height" min="120" max="230" value="${esc(s.height??"")}"></label></div>
+    <div class="form-row"><label>Activité<select name="activity">${opt([[1.4,"Modérée"],[1.55,"Sportive (3–5 / sem.)"],[1.7,"Très sportive"]],s.activity)}</select></label>
+     <label>Objectif nutrition<select name="deficit">${opt([[0,"Maintien"],[250,"Perte douce (−250 kcal)"],[400,"Perte (−400 kcal)"],[500,"Perte marquée (−500 kcal)"]],s.deficit)}</select></label></div></section>
+   <section class="card stack"><div><div class="eyebrow">Padel</div><h2>Programme</h2></div>
+    <div class="form-row"><label>Début du programme (un lundi)<input type="date" name="start" value="${esc(s.start||"")}"></label>
+     <label>Côté de jeu<select name="side">${opt([["gauche","Gauche"],["droite","Droite"]],s.side)}</select></label>
+     <label>Catégorie habituelle<select name="level">${opt(LEVELS.map(l=>[l,l]),s.level)}</select></label></div>
+    <div class="form-row"><label>Jour de tournoi habituel<select name="tDefault">${opt(TDAY_OPTS,s.tDefault||"sam")}</select></label>
+     <label>Jour de cours / entraînement<select name="lessonDay">${opt(LESSON_DAYS,s.lessonDay||"mar")}</select></label></div></section>
+   <section class="card stack"><div><div class="eyebrow">Affichage</div><h2>Préférences</h2></div>
+    <div class="form-row"><label>Thème<select name="theme">${opt([["auto","Automatique"],["light","Clair"],["dark","Sombre"]],s.theme)}</select></label>
+     <label>Annonces vocales<select name="voice">${opt([["1","Activées"],["0","Désactivées"]],s.voice?"1":"0")}</select></label></div>
+    <div><button class="btn" type="submit">Enregistrer les réglages</button></div></section></form>
+  ${accountCard()}
+  <section class="card stack"><div><div class="eyebrow">Sur cet appareil</div><h2>Sauvegarde</h2></div>
+   <p class="small">Dernière sauvegarde : ${data.meta.main.lastExport?fr(data.meta.main.lastExport):"jamais"}. Enregistre le fichier dans Fichiers, iCloud Drive ou Google Drive.</p>
+   <div class="actions"><button class="btn" type="button" data-export="1">Exporter une sauvegarde</button><label class="btn ghost filebtn">Restaurer<input type="file" id="file-import" accept="application/json,.json" hidden></label></div></section>
   ${settingsExtra()}
-  <section class="card stack"><h3>À propos</h3><p class="muted small">Programme Padel · version ${APP_VERSION}. Données stockées sur ce téléphone${con?" et dans ton cloud Supabase":""}.</p></section>`;};
+  <section class="card stack"><div><div class="eyebrow">Confidentialité</div><h2>Tes données</h2></div>
+   <p class="small">${con?"Tes données sont enregistrées sur cet appareil et dans ton compte en ligne, accessible uniquement avec ton identifiant.":"Tes données restent uniquement sur cet appareil : rien n'est envoyé en ligne."} Tu peux les exporter ou les effacer à tout moment.</p>
+   <p class="small muted">Cette application propose un entraînement général et ne remplace pas l'avis d'un médecin ou d'un kinésithérapeute. En cas de douleur persistante, consulte un professionnel de santé.</p>
+   <div class="actions"><button class="btn ghost danger" type="button" data-wipe="1">Effacer toutes mes données</button></div></section>
+  <section class="card stack"><h3>À propos</h3><p class="muted small">${esc(APP_CONFIG.name||"Programme Padel")} · version ${APP_VERSION}${APP_CONFIG.contactEmail?` · <a href="mailto:${esc(APP_CONFIG.contactEmail)}">Contact</a>`:""}</p></section>`;};
 
 /* ---------- Images à partager ---------- */
 function canvasCard(title,sub,stats,foot){

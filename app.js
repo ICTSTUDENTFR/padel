@@ -1,6 +1,6 @@
 /* Programme Padel — navigation, évènements, démarrage */
 "use strict";
-const APP_VERSION="3.1.0";
+const APP_VERSION="3.2.0";
 const TABS=[["today","Aujourd'hui",'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
  ["week","Semaine",'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
  ["lib","Exercices",'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'],
@@ -25,10 +25,12 @@ function renderApp(opts={}){
   $("#appsub").textContent=state.tab==="today"?"":(todayRef()?`Semaine ${curWeek()} · ${blockOf(curWeek()).name}`:`Début le ${fr(startDate())}`);
   const view={today:renderToday,week:renderWeek,lib:renderLib,stats:renderStats,more:renderMore}[state.tab]||renderToday;
   document.body.dataset.tab=state.tab;
+  if(state.tab==="more"&&state.sub)document.body.dataset.sub=state.sub;else delete document.body.dataset.sub;
   main.innerHTML=`<div class="panel">${view()}</div>`;
   openD.forEach(k=>{const d=$(`#main details[data-k="${k}"]`);if(d)d.open=true;});
   $$("#tabbar button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===state.tab?"page":"false"));
   paintSyncStatus();
+  if(typeof renderOnboard==="function"&&$("#onboard")&&S_().onboarded)renderOnboard();
 }
 function go(tab,sub){state.tab=tab;state.sub=sub??null;state.moveFor=null;saveUi();renderApp({force:true});window.scrollTo(0,0);}
 function confirmBtn(el,label,fn){if(el.dataset.confirm==="1"){fn();return;}const old=el.textContent;el.dataset.confirm="1";el.textContent=label;setTimeout(()=>{if(el.isConnected){el.dataset.confirm="";el.textContent=old;}},3000);}
@@ -44,9 +46,8 @@ document.addEventListener("click",e=>{
   // Coach technique
   if(D.choose){const [k,d]=D.choose.split("|");chooseTheme(k,d);return;}
   if(D.lessoncopy){const [k,d]=D.lessoncopy.split("|"),txt=lessonText(k,d);if(navigator.share)navigator.share({title:"Cours de padel : "+k,text:txt}).catch(()=>{});else copyText(txt).then(ok=>toast(ok?"Plan copié : envoie-le à ton prof":"Copie impossible",!ok));return;}
-  // Coach technique
-  if(D.choose){const [k,d]=D.choose.split("|");chooseTheme(k,d);return;}
-  if(D.lessoncopy){const [k,d]=D.lessoncopy.split("|"),txt=lessonText(k,d);if(navigator.share)navigator.share({title:"Cours de padel : "+k,text:txt}).catch(()=>{});else copyText(txt).then(ok=>toast(ok?"Plan copié : envoie-le à ton prof":"Copie impossible",!ok));return;}
+  if(D.wipe){confirmBtn(t,"Confirmer : tout effacer ?",()=>{try{Object.keys(localStorage).filter(k=>k.startsWith("padel")).forEach(k=>localStorage.removeItem(k));}catch(e){}location.hash="";location.reload();});return;}
+  if(D.ob!=null){onboardClick(t);return;}
   // v3
   if(D.evreg){const e=data.events[D.evreg];if(e){e.registered=!e.registered;save("events",e.id,e);}return;}
   if(D.evgoal){const e=data.events[D.evgoal];if(e){e.goal=!e.goal;save("events",e.id,e);toast(e.goal?"Objectif : affûtage les 10 jours d'avant":"Objectif retiré");}return;}
@@ -119,7 +120,7 @@ document.addEventListener("click",e=>{
     else{const url=URL.createObjectURL(blob);const w=window.open(url,"_blank");if(!w)shareFile(blob,"programme-padel.ics","Programme padel");}return;}
   // Bilan
   if(D.bilan){state.bilanDays=+D.bilan;renderApp({force:true});return;}
-  if(D.copybilan){const ta=$("#bilantxt");copyText(ta.value).then(ok=>{if(ok)toast("Bilan copié : colle-le dans Claude");else{ta.focus();ta.select();toast("Sélectionne le texte et copie-le",true);}});return;}
+  if(D.copybilan){const ta=$("#bilantxt");copyText(ta.value).then(ok=>{if(ok)toast("Bilan copié");else{ta.focus();ta.select();toast("Sélectionne le texte et copie-le",true);}});return;}
   // Sync
   if(D.sync==="now"){Sync.status="Synchronisation…";paintSyncStatus();Sync.pull();return;}
   if(D.sync==="out"){Sync.signOut();renderApp({force:true});return;}
@@ -175,14 +176,18 @@ document.addEventListener("submit",async e=>{
   if(F.vnote){const vv=data.videos[F.vnote];const tt=v("t").trim(),tx=v("txt").trim();if(!tx)return;vv.notes=(vv.notes||[]).concat({t:tt,txt:tx}).sort((a,b)=>String(a.t).localeCompare(String(b.t),undefined,{numeric:true}));save("videos",vv.id,vv);return;}
   if(F.sweat){const b=num(v("before")),a=num(v("after")),dr=num(v("drunk"))||0,du=num(v("dur"))||90;if(!b||!a)return;const loss=Math.max(0,b-a+dr),id=uid();save("sweat",id,{id,date:todayIso(),before:b,after:a,drunk:dr,dur:du,loss,rate:loss/(du/60),toDrink:Math.max(0,(b-a)*1.5)});return;}
   if(F.resume){const days=num(v("days")),from=v("from")||todayIso();if(!days)return;save("resume","main",{from,days,until:addDays(from,days>=21?14:7)});toast("Reprise progressive programmée");return;}
-  if(F.settings){const s=S_();["start","side","theme","sex"].forEach(k=>s[k]=v(k));s.voice=v("voice")==="1";["height","age","activity","deficit"].forEach(k=>s[k]=num(v(k)));
-    if(parse(s.start).getDay()!==1)toast("Conseil : choisis un lundi comme date de début",true);else toast("Réglages enregistrés");
+  if(F.settings){const s=S_();["start","side","theme","sex","tDefault","lessonDay","level"].forEach(k=>s[k]=v(k));s.name=v("name").trim().slice(0,30);s.voice=v("voice")==="1";["height","age","activity","deficit"].forEach(k=>s[k]=num(v(k)));
+    if(s.start&&parse(s.start).getDay()!==1)toast("Conseil : choisis un lundi comme date de début",true);else toast("Réglages enregistrés");
     lsSave();applyTheme();state.week=null;renderApp({force:true});return;}
-  if(F.syncform){const act=(e.submitter&&e.submitter.value)||"in";const c=Sync.cfg();c.url=v("url").trim();c.key=v("key").trim();c.email=v("email").trim();Sync.set(c);
-    if(!c.url||!c.key||!c.email||!v("pw")){Sync.status="Remplis tous les champs";paintSyncStatus();return;}
+  if(F.onboard){onboardSubmit(f);return;}
+  if(F.syncform){const act=(e.submitter&&e.submitter.value)||"in";const c=Sync.cfg();c.email=v("email").trim();Sync.set(c);
+    if(!cloudOn()){Sync.status="Comptes indisponibles pour le moment";paintSyncStatus();return;}
+    if(act==="recover"){if(!c.email){Sync.status="Indique ton e-mail";paintSyncStatus();return;}try{await Sync.recover(c.email);Sync.status="E-mail envoyé : suis le lien pour choisir un nouveau mot de passe.";}catch(err){Sync.status="Échec : "+err.message;}paintSyncStatus();return;}
+    if(!c.email||!v("pw")){Sync.status="Indique ton e-mail et ton mot de passe";paintSyncStatus();return;}
+    if(v("pw").length<6){Sync.status="Mot de passe : 6 caractères minimum";paintSyncStatus();return;}
     Sync.status="Connexion…";paintSyncStatus();
-    try{if(act==="up"){const r=await Sync.signUp(c.email,v("pw"));if(r==="confirm"){Sync.status="Compte créé : confirme ton e-mail puis connecte-toi.";paintSyncStatus();return;}}else await Sync.signIn(c.email,v("pw"));Sync.status="Connecté";renderApp({force:true});toast("Synchronisation activée");}
-    catch(err){Sync.status="Échec : "+err.message;paintSyncStatus();}
+    try{if(act==="up"){const r=await Sync.signUp(c.email,v("pw"));if(r==="confirm"){Sync.status="Compte créé : confirme ton e-mail puis connecte-toi.";paintSyncStatus();return;}}else await Sync.signIn(c.email,v("pw"));Sync.status="Connecté";renderApp({force:true});toast("Compte connecté");}
+    catch(err){Sync.status="Échec : "+friendlyAuthErr(err.message);paintSyncStatus();}
     return;}
 });
 
@@ -195,7 +200,8 @@ document.addEventListener("touchend",e=>{if(sx==null)return;const dx=e.changedTo
 function showUpdate(){const b=$("#updbar");if(b)b.hidden=false;}
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){
   let refreshing=false;
-  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(refreshing)return;refreshing=true;location.reload();});
+  const hadCtrl=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{if(refreshing||!hadCtrl)return;refreshing=true;location.reload();});
   window.addEventListener("load",()=>{navigator.serviceWorker.register("./sw.js").then(reg=>{window._swreg=reg;
     if(reg.waiting&&navigator.serviceWorker.controller)showUpdate();
     reg.addEventListener("updatefound",()=>{const nw=reg.installing;nw&&nw.addEventListener("statechange",()=>{if(nw.state==="installed"&&navigator.serviceWorker.controller)showUpdate();});});
@@ -211,7 +217,7 @@ $("#tabbar").innerHTML=TABS.map(([k,l,ic])=>`<button type="button" data-tab="${k
   const shared=await loadSharedView();
   applyTheme();
   renderApp({force:true});
-  if(!shared){handleHash();Sync.pull();}
+  if(!shared){const au=handleAuthHash();renderOnboard();if(!au){handleHash();Sync.pull();}}
 })();
 window.addEventListener("hashchange",()=>{if((location.hash||"").startsWith("#partage=")){location.reload();return;}if(!READONLY)handleHash();});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&!READONLY){Sync.pull();if(!state.run)renderApp();}});

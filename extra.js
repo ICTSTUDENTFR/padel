@@ -196,7 +196,7 @@ function handleHash(){
 }
 
 /* =====================================================================
-   8. Notifications (push via ta Supabase)
+   8. Notifications (push via le serveur du compte)
    ===================================================================== */
 function notifPrefs(){return {...{session:true,mobility:true,eve:true,deadline:true,weekly:true},...(S_().notif||{})};}
 function buildNotifQueue(){
@@ -214,7 +214,7 @@ function buildNotifQueue(){
 }
 async function enablePush(){
   const c=Sync.cfg();
-  if(!Sync.connected()){toast("Active d'abord la synchronisation cloud",true);return;}
+  if(!Sync.connected()){toast("Connecte-toi d'abord à ton compte",true);return;}
   if(!("serviceWorker" in navigator)||!("PushManager" in window)){toast("Sur iPhone : ouvre l'app depuis l'icône de l'écran d'accueil (iOS 16.4 ou plus)",true);return;}
   try{
     const perm=await Notification.requestPermission();if(perm!=="granted"){toast("Notifications refusées",true);return;}
@@ -234,11 +234,11 @@ let _nq=null;function scheduleNotifQueue(){if(!data.pushSub.main)return;clearTim
    ===================================================================== */
 let READONLY=false;
 async function createShare(){
-  const c=Sync.cfg();if(!Sync.connected()){toast("Active d'abord la synchronisation cloud",true);return;}
+  const c=Sync.cfg();if(!Sync.connected()){toast("Connecte-toi d'abord à ton compte",true);return;}
   const token=Array.from(crypto.getRandomValues(new Uint8Array(18))).map(b=>b.toString(36).padStart(2,"0")).join("").slice(0,28);
   try{await Sync.push();const tk=await Sync.token();
     const r=await fetch(Sync.base()+"/rest/v1/padel_share",{method:"POST",headers:{apikey:c.key,Authorization:"Bearer "+tk,"Content-Type":"application/json",Prefer:"return=minimal"},body:JSON.stringify({token})});
-    if(!r.ok)throw new Error("Erreur "+r.status+" (as-tu lancé le script SQL v3 ?)");
+    if(!r.ok)throw new Error("Erreur "+r.status+" ");
     data.share.main={token,created:todayIso()};lsSave();renderApp({force:true});toast("Lien de partage créé");}
   catch(e){toast("Échec : "+e.message,true);}
 }
@@ -285,7 +285,7 @@ function gearAlerts(){return Object.values(data.gear).filter(g=>g&&g.since).map(
    12. Écrans supplémentaires
    ===================================================================== */
 MORE.splice(3,0,["calendrier-tournois","Tournois à venir","Inscriptions, objectifs, affûtage"],["adversaires","Adversaires","Carnet des paires rencontrées"]);
-MORE.splice(9,0,["renfo","Renforcement ciblé","Épaule, coude, dos, genou…"],["mental","Mental","Routines, visualisation, confiance"],["repas","Repas de la semaine","Menus et liste de courses"],["materiel","Matériel","Raquette, chaussures, grips"],["videos","Vidéos de match","Liens et notes minutées"],["outils","Outils","Métronome, respiration, hydratation"],["reprise","Reprise après coupure","Vacances, maladie, blessure"],["raccourcis","Raccourcis Siri","Commandes vocales, Apple Santé"]);
+MORE.splice(9,0,["renfo","Renforcement ciblé","Épaule, coude, dos, genou…"],["mental","Mental","Routines, visualisation, confiance"],["repas","Repas de la semaine","Menus et liste de courses"],["materiel","Matériel","Raquette, chaussures, grips"],["videos","Vidéos de match","Liens et notes minutées"],["outils","Outils","Métronome, respiration, hydratation"],["reprise","Reprise après coupure","Vacances, maladie, blessure"],["raccourcis","Raccourcis Siri",cloudOn()?"Commandes vocales, Apple Santé":"Commandes vocales et raccourcis"]);
 const ROUNDS_ALL=["Poules","1/16","1/8","1/4","1/2","Finale","Vainqueur"];
 
 SUBS["calendrier-tournois"]=()=>{
@@ -297,7 +297,7 @@ SUBS["calendrier-tournois"]=()=>{
   return `<section class="card stack"><div><div class="eyebrow">Ton calendrier de compétition</div><h2>Tournois à venir</h2></div>
    <p class="small">Chaque tournoi ajouté règle automatiquement le programme de sa semaine (vendredi, samedi ou dimanche). Marque tes tournois importants comme <b>objectif</b> : les 10 jours d'avant passent en affûtage pour arriver au top.</p>
    <form class="stack" data-evadd="1"><div class="form-row"><label>Début<input type="date" name="date" required></label><label>Fin (si plusieurs jours)<input type="date" name="end"></label>
-     <label>Catégorie<select name="cat">${["P25","P100","P250","P500","P1000"].map(c=>`<option ${c==="P250"?"selected":""}>${c}</option>`).join("")}</select></label><label>Club / lieu<input name="lieu"></label></div>
+     <label>Catégorie<select name="cat">${LEVELS.map(c=>`<option ${c===(S_().level||"P250")?"selected":""}>${c}</option>`).join("")}</select></label><label>Club / lieu<input name="lieu"></label></div>
     <div class="form-row"><label>Clôture des inscriptions<input type="date" name="deadline"></label><label>Note<input name="note" placeholder="partenaire, horaires…"></label><label class="check"><input type="checkbox" name="goal"> Tournoi objectif</label><label class="check"><input type="checkbox" name="registered"> Déjà inscrit</label></div>
     <div><button class="btn" type="submit">Ajouter</button></div></form></section>
   <section class="card stack"><h3>À venir</h3>${up.length?up.map(row).join(""):`<div class="empty">Aucun tournoi prévu.</div>`}</section>
@@ -359,7 +359,7 @@ function ytAt(url,t){const m=String(t||"").match(/^(\d+):(\d{2})(?::(\d{2}))?$/)
 SUBS.videos=()=>{
   const list=Object.values(data.videos).sort((a,b)=>b.date.localeCompare(a.date));
   return `<section class="card stack"><div><div class="eyebrow">YouTube, Google Drive, iCloud…</div><h2>Vidéos de match</h2></div>
-   <form class="form-row" data-vidadd="1"><label>Lien de la vidéo<input name="url" type="url" required placeholder="https://…"></label><label>Titre<input name="title" placeholder="ex. 1/4 P250 Montauban"></label><label>Date<input type="date" name="date" value="${todayIso()}"></label><button class="btn" type="submit">Ajouter</button></form></section>
+   <form class="form-row" data-vidadd="1"><label>Lien de la vidéo<input name="url" type="url" required placeholder="https://…"></label><label>Titre<input name="title" placeholder="ex. 1/4 de finale P250"></label><label>Date<input type="date" name="date" value="${todayIso()}"></label><button class="btn" type="submit">Ajouter</button></form></section>
   ${list.map(v=>`<section class="card stack"><div class="sess-head"><div><h3>${esc(v.title||"Vidéo")}</h3><div class="muted small">${fr(v.date)}</div></div><div class="actions"><a class="chip-btn" href="${esc(v.url)}" target="_blank" rel="noopener">Ouvrir ↗</a><button class="del" data-del="videos:${v.id}">supprimer</button></div></div>
    ${(v.notes||[]).map((n,i)=>`<div class="vnote"><a href="${esc(ytAt(v.url,n.t))}" target="_blank" rel="noopener" class="num">${esc(n.t)}</a><span>${esc(n.txt)}</span><button class="del" type="button" data-vnotedel="${v.id}|${i}">×</button></div>`).join("")}
    <form class="inline" data-vnote="${v.id}"><input name="t" placeholder="12:30" style="max-width:80px"><input name="txt" placeholder="ex. bandeja trop courte, bien vu la sortie de vitre"><button class="btn small" type="submit">Noter</button></form></section>`).join("")||`<section class="card"><div class="empty">Ajoute le lien d'une vidéo de match, puis des notes minutées. Sur YouTube, chaque note ouvre la vidéo au bon moment.</div></section>`}`;
@@ -381,7 +381,7 @@ SUBS.reprise=()=>{
   return `<section class="card stack"><div><div class="eyebrow">Vacances, maladie, blessure</div><h2>Reprise après une coupure</h2></div>
    <p class="small">Après une coupure, reprendre directement au niveau d'avant expose aux blessures. Indique la durée de ton arrêt : les séances de force et les finishers passent automatiquement en version de reprise (charges −20 %, effort 6–7/10, pas de sauts maximaux) pendant 1 semaine, ou 2 semaines si l'arrêt a duré 3 semaines ou plus.</p>
    ${active?`<div class="alert"><b>Reprise en cours</b> jusqu'au ${fr(addDays(r.until,-1))} (après ${r.days} jours d'arrêt). <button class="linkbtn" data-resumeend="1">Terminer la reprise</button></div>`:""}
-   <form class="form-row" data-resume="1"><label>Nombre de jours d'arrêt<input type="number" inputmode="numeric" name="days" min="3" required></label><label>Je reprends le<input type="date" name="from" value="${todayIso()}"></label><button class="btn" type="submit">Lancer la reprise</button></form>
+   <form class="form-row" data-resume="1"><label>Nombre de jours d'arrêt<input type="number" inputmode="numeric" name="days" min="3" required></label><label>Je reprends le<input type="date" name="from" value="${todayIso()}"></label><div style="grid-column:1/-1"><button class="btn" type="submit">Lancer la reprise</button></div></form>
    <p class="muted small">Si l'arrêt vient d'une blessure, attends l'accord d'un professionnel de santé avant de reprendre.</p></section>`;
 };
 SUBS.raccourcis=()=>{
@@ -389,28 +389,28 @@ SUBS.raccourcis=()=>{
   return `<section class="card stack"><div><div class="eyebrow">« Dis Siri, démarre ma séance »</div><h2>Raccourcis Siri</h2></div>
    <ol class="steps"><li><span>Ouvre l'app <b>Raccourcis</b> sur l'iPhone, touche <b>+</b>.</span></li><li><span>Ajoute l'action <b>Ouvrir les URL</b> et colle une des adresses ci-dessous.</span></li><li><span>Nomme le raccourci (ex. « Démarre ma séance ») : Siri le lancera à la voix. Tu peux aussi l'ajouter à l'écran d'accueil ou au bouton Action.</span></li></ol>
    ${L.map(([l,h])=>`<div class="linkrow"><div><b>${esc(l)}</b><div class="muted small mono">${esc(B+h)}</div></div><button class="chip-btn" type="button" data-copy="${esc(B+h)}">Copier</button></div>`).join("")}
-   <div class="alert warn small">iOS ouvre ces liens dans Safari et non dans l'app installée, qui a son propre stockage. Active la <b>synchronisation cloud</b> (Réglages) sur les deux : ce que tu fais depuis un raccourci se retrouve alors dans l'app. Pour Démarrer ma séance et Mobilité, tu peux aussi simplement utiliser Safari.</div></section>
-  <section class="card stack"><div><div class="eyebrow">Poids, FC au réveil, sommeil</div><h2>Import depuis Apple Santé</h2></div>
-   <p class="small">Un raccourci peut lire tes données Santé et les envoyer à l'app, sans ressaisie. Nécessite la synchronisation cloud.</p>
+   <div class="alert warn small">iOS ouvre ces liens dans Safari et non dans l'app installée, qui a son propre stockage. ${cloudOn()?"Connecte-toi à ton compte (Réglages) dans les deux : ce que tu fais depuis un raccourci se retrouve alors dans l'app.":"Les raccourcis « Démarrer ma séance » et « Mobilité » fonctionnent très bien dans Safari ; pour enregistrer des données, ouvre plutôt l'app."}</div></section>
+  ${cloudOn()?`<section class="card stack"><div><div class="eyebrow">Poids, FC au réveil, sommeil</div><h2>Import depuis Apple Santé</h2></div>
+   <p class="small">Un raccourci peut lire tes données Santé et les envoyer à l'app, sans ressaisie. Nécessite d'être connecté à ton compte.</p>
    <ol class="steps"><li><span>Nouveau raccourci. Ajoute <b>Rechercher des échantillons de santé</b> : type <b>Poids</b>, trier par date de début (le plus récent d'abord), limite 1.</span></li>
     <li><span>Ajoute à nouveau <b>Rechercher des échantillons de santé</b> : <b>Fréquence cardiaque au repos</b>, le plus récent, limite 1.</span></li>
     <li><span>Encore une fois : <b>Analyse du sommeil</b> des dernières 24 h (valeur « Endormi »), puis <b>Calculer les statistiques</b> → Somme, et convertis en heures.</span></li>
     <li><span>Ajoute <b>Texte</b> avec : <span class="mono small">${esc(B)}#import?poids=[Poids]&fc=[FC]&sommeil=[Sommeil]</span> en insérant les variables des étapes précédentes (valeurs numériques).</span></li>
     <li><span>Ajoute <b>Ouvrir les URL</b> avec ce texte. Dans l'onglet Automatisation, déclenche-le chaque matin à 8 h.</span></li></ol>
-   <p class="muted small">La FC au réveil et le sommeil affinent ta note de forme du matin.</p></section>`;
+   <p class="muted small">La FC au réveil et le sommeil affinent ta note de forme du matin.</p></section>`:""}`;
 };
 
 /* Réglages : blocs ajoutés (notifications, partage coach, CSV) */
 function settingsExtra(){
   const con=Sync.connected(),sub=data.pushSub.main,pr=notifPrefs(),sh=data.share.main;
-  return `<section class="card stack"><div><div class="eyebrow">Nécessite la synchronisation cloud et l'app installée sur l'écran d'accueil</div><h2>Notifications</h2></div>
-   <p class="small">Rappels envoyés par ta propre Supabase (script SQL v3 + fonction « padel-push », voir LISEZMOI). Fonctionne sur iPhone à partir d'iOS 16.4, uniquement depuis l'icône de l'écran d'accueil.</p>
+  return `${cloudOn()?`<section class="card stack"><div><div class="eyebrow">Nécessite un compte et l'app installée sur l'écran d'accueil</div><h2>Notifications</h2></div>
+   <p class="small">Rappels de séance, de mobilité, de tournoi et d'inscription. Sur iPhone : iOS 16.4 ou plus, depuis l'icône de l'écran d'accueil uniquement.</p>
    <div class="actions">${sub?`<span class="okline">✓ Activées sur cet appareil</span><button class="btn ghost small" type="button" data-push="off">Désactiver</button>`:`<button class="btn" type="button" data-push="on" ${con?"":"disabled"}>Activer les notifications</button>`}</div>
    <div class="nq">${[["session","Séance dans 30 min"],["mobility","Mobilité du jour"],["eve","Veille de tournoi"],["deadline","Inscriptions à faire"],["weekly","Bilan du lundi"]].map(([k,l])=>`<button class="chip-btn" type="button" data-npref="${k}" aria-pressed="${!!pr[k]}">${pr[k]?"✓ ":""}${l}</button>`).join("")}</div>
    ${sub?`<p class="muted small">${((data.notif.main||{}).queue||[]).length} rappels programmés sur 14 jours.</p>`:""}</section>
   <section class="card stack"><div><div class="eyebrow">Lecture seule</div><h2>Partager avec un coach</h2></div>
    <p class="small">Crée un lien que ton coach ou ton partenaire peut ouvrir pour voir tes séances, charges, tests et tournois, sans rien pouvoir modifier. Tu peux le désactiver à tout moment.</p>
-   ${sh?`<div class="linkrow"><div class="mono small wrap">${esc(shareLink())}</div><button class="chip-btn" type="button" data-copy="${esc(shareLink())}">Copier</button></div><div><button class="btn ghost small" type="button" data-share="off">Désactiver le lien</button></div>`:`<div><button class="btn" type="button" data-share="on" ${con?"":"disabled"}>Créer un lien de partage</button></div>`}</section>
+   ${sh?`<div class="linkrow"><div class="mono small wrap">${esc(shareLink())}</div><button class="chip-btn" type="button" data-copy="${esc(shareLink())}">Copier</button></div><div><button class="btn ghost small" type="button" data-share="off">Désactiver le lien</button></div>`:`<div><button class="btn" type="button" data-share="on" ${con?"":"disabled"}>Créer un lien de partage</button></div>`}</section>`:""}
   <section class="card stack"><div><div class="eyebrow">Excel, Numbers, Google Sheets</div><h2>Export tableur</h2></div>
    <div class="actions">${[["seances","Séances"],["series","Séries et charges"],["poids","Poids"],["tests","Tests"],["tournois","Tournois"],["forme","Forme du matin"]].map(([k,l])=>`<button class="chip-btn" type="button" data-csv="${k}">${l}</button>`).join("")}</div></section>`;
 }

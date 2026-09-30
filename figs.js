@@ -162,7 +162,7 @@ function figHtml(key,opts={}){
 function videoUrl(key){const e=EX[key];const q=(e&&e.vq)||((e?e.n:key)+" exercice technique");return "https://www.youtube.com/results?search_query="+encodeURIComponent(q);}
 function exDetail(key,opts={}){
   const e=EX[key];if(!e)return "";
-  const S=x=>esc(sideTxt(x));
+  const S=x=>esc(sideTxt(x).replace("{FC_Z2}",zone2Range()));
   return `<div class="exd">${opts.noFig?"":figHtml(key)}
    <p class="why"><b>Pour ton padel :</b> ${S(e.w)}</p>
    <div class="exd-cols">
@@ -177,3 +177,5 @@ function exDetail(key,opts={}){
    ${opts.history!==false&&typeof exHistoryHtml==="function"?exHistoryHtml(key):""}
   </div>`;
 }
+
+function zone2Range(){const a=+(data.settings.main&&data.settings.main.age)||30,m=208-0.7*a;return `${Math.round(m*0.6/5)*5} à ${Math.round(m*0.7/5)*5}`;}

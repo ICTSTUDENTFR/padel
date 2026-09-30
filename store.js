@@ -3,7 +3,8 @@
 const COLLS=["logs","weights","tests","tournois","settings","mobilite","weeks","checkins","pains","ranking","adj","swaps","tech","nutri","bag","goals","meta","events","rehab","resume","gear","opps","videos","mental","sweat","meals","pushSub","notif","share"];
 const data={};COLLS.forEach(c=>data[c]={});
 const LSK="padel-plan-v1";
-const DEFAULT_SETTINGS={start:"2026-10-05",side:"gauche",theme:"auto",voice:true,height:185,age:25,sex:"H",activity:1.55,deficit:400,
+function nextMonday(){const d=new Date();const k=(8-d.getDay())%7||7;d.setDate(d.getDate()+(d.getDay()===1?0:k));return iso(d);}
+const DEFAULT_SETTINGS={start:null,name:"",side:"gauche",theme:"auto",voice:true,height:null,age:null,sex:"H",activity:1.55,deficit:0,tDefault:"sam",lessonDay:"mar",level:"P250",
   times:{lun:"18:30",mar:"19:00",mer:"18:30",jeu:"19:00",ven:"18:30",sam:"09:00",dim:"09:00"},mobTime:"08:00"};
 const S_=()=>data.settings.main;
 
@@ -14,10 +15,13 @@ function lsLoad(){
 }
 function normalize(){
   COLLS.forEach(c=>{if(!data[c]||typeof data[c]!=="object")data[c]={};});
-  if(!data.settings.main){data.settings.main={...DEFAULT_SETTINGS};if(!Object.keys(data.weights).length)data.weights.depart={id:"depart",date:"2026-09-28",kg:89};}
+  const existed=!!data.settings.main;
+  if(!existed)data.settings.main={...DEFAULT_SETTINGS,start:nextMonday(),onboarded:false};
+  if(existed&&data.settings.main.onboarded===undefined)data.settings.main.onboarded=true; // utilisateurs des versions précédentes
   data.settings.main={...DEFAULT_SETTINGS,...data.settings.main,times:{...DEFAULT_SETTINGS.times,...(data.settings.main.times||{})}};
+  if(!data.settings.main.start)data.settings.main.start=nextMonday();
   if(!data.bag.main)data.bag.main={items:BAG_DEFAULT.slice(),checked:{}};
-  if(!Object.keys(data.goals).length){data.goals.poids={id:"poids",type:"poids",label:"Poids de forme",target:85,unit:"kg"};data.goals.rang={id:"rang",type:"classement",label:"Classement FFT",target:null,unit:"e"};data.goals.squat={id:"squat",type:"exo:back_squat",label:"Squat (force max estimée)",target:null,unit:"kg"};}
+  if(!Object.keys(data.goals).length){data.goals.poids={id:"poids",type:"poids",label:"Poids de forme",target:null,unit:"kg"};data.goals.rang={id:"rang",type:"classement",label:"Classement FFT",target:null,unit:"e"};data.goals.squat={id:"squat",type:"exo:back_squat",label:"Squat (force max estimée)",target:null,unit:"kg"};}
   if(!data.meta.main)data.meta.main={updatedAt:0,lastExport:null,created:Date.now()};
   lsSave(true);
 }
@@ -31,7 +35,7 @@ function save(coll,id,obj,opts={}){if(typeof READONLY!=="undefined"&&READONLY){t
 function remove(coll,id,opts={}){delete data[coll][id];lsSave();if(!opts.silent&&typeof renderApp==="function")renderApp();}
 
 /* ---------- Dates du programme ---------- */
-const startDate=()=>S_().start||"2026-10-05";
+const startDate=()=>S_().start||nextMonday();
 const daysToStart=()=>daysBetween(todayIso(),startDate());
 function weekOfDate(ds){const d=daysBetween(startDate(),ds);return d<0?0:Math.floor(d/7)+1;}
 function curWeek(){return Math.max(1,weekOfDate(todayIso()));}
@@ -111,7 +115,7 @@ function totalDone(){return Object.values(data.logs).filter(l=>l&&l.done).length
 function latestRank(){const r=Object.values(data.ranking).filter(x=>x.rank).sort((a,b)=>a.date.localeCompare(b.date));return r.length?+r[r.length-1].rank:null;}
 /* Nutrition */
 function nutritionTargets(){
-  const s=S_(),w=latestWeight()||89,h=+s.height||185,a=+s.age||25;
+  const s=S_(),w=latestWeight()||(s.sex==="F"?62:75),h=+s.height||(s.sex==="F"?165:178),a=+s.age||30;
   const bmr=10*w+6.25*h-5*a+(s.sex==="F"?-161:5),tdee=bmr*(+s.activity||1.55),kcal=Math.round((tdee-(+s.deficit||0))/10)*10;
   return {w,bmr:Math.round(bmr),tdee:Math.round(tdee),kcal,prot:Math.round(w*1.8),water:w>80?3:2.5};
 }
@@ -124,16 +128,18 @@ async function exportData(){
 }
 function importData(file){
   const r=new FileReader();
-  r.onload=()=>{try{const j=JSON.parse(r.result),d=j.data||j;let n=0;COLLS.forEach(c=>{if(d[c]&&typeof d[c]==="object"){data[c]=d[c];n++;}});if(!n)throw 0;normalize();lsSave();renderApp();toast("Sauvegarde restaurée");}catch(e){toast("Ce fichier n'est pas une sauvegarde valide",true);}};
+  r.onload=()=>{try{const j=JSON.parse(r.result),d=j.data||j;let n=0;COLLS.forEach(c=>{if(d[c]&&typeof d[c]==="object"){data[c]=d[c];n++;}});if(!n)throw 0;normalize();if(data.settings.main)data.settings.main.onboarded=true;lsSave();renderApp();toast("Sauvegarde restaurée");}catch(e){toast("Ce fichier n'est pas une sauvegarde valide",true);}};
   r.readAsText(file);
 }
 function backupDue(){if(Sync.connected())return false;const le=data.meta.main.lastExport;return totalDone()>0&&(!le||daysBetween(le,todayIso())>=7);}
 
-/* ---------- Synchronisation cloud (Supabase, optionnelle) ---------- */
+/* ---------- Comptes et synchronisation (serveur défini dans config.js) ---------- */
+const cloudOn=()=>!!(typeof APP_CONFIG!=="undefined"&&APP_CONFIG.supabaseUrl&&APP_CONFIG.supabaseAnonKey);
 const Sync={
-  cfg(){try{return JSON.parse(localStorage.getItem("padel-sync")||"{}");}catch(e){return {};}},
+  cfg(){let c={};try{c=JSON.parse(localStorage.getItem("padel-sync")||"{}");}catch(e){}if(cloudOn()){c.url=APP_CONFIG.supabaseUrl;c.key=APP_CONFIG.supabaseAnonKey;}return c;},
   set(c){try{localStorage.setItem("padel-sync",JSON.stringify(c));}catch(e){}},
-  connected(){const c=this.cfg();return !!(c.url&&c.key&&c.access&&c.userId);},
+  connected(){const c=this.cfg();return cloudOn()&&!!(c.url&&c.key&&c.access&&c.userId);},
+  async recover(email){const c=this.cfg();const r=await fetch(this.base()+"/auth/v1/recover",{method:"POST",headers:{apikey:c.key,"Content-Type":"application/json"},body:JSON.stringify({email})});if(!r.ok)throw new Error("Erreur "+r.status);},
   status:"",
   _t:null,
   base(){return (this.cfg().url||"").replace(/\/+$/,"");},
@@ -177,7 +183,7 @@ const Sync={
       if(row&&row.data&&(remoteAt>localAt||(first&&totalDone()===0&&remoteAt>0))){
         COLLS.forEach(c=>{if(row.data[c])data[c]=row.data[c];});data.meta.main.updatedAt=remoteAt;
         try{localStorage.setItem(LSK,JSON.stringify(data));}catch(e){}
-        this.status="Données récupérées depuis le cloud";toast("Données synchronisées");renderApp();
+        this.status="Données récupérées depuis ton compte";toast("Données synchronisées");renderApp();
       }else if(!row||localAt>remoteAt){await this.push();return;}
       else this.status="À jour";
     }catch(e){this.status="Échec de la synchronisation : "+e.message;}
@@ -213,11 +219,11 @@ function buildIcs(fromW,toW,opts){
   return L.join("\r\n");
 }
 
-/* ---------- Bilan à envoyer à Claude ---------- */
+/* ---------- Bilan à partager (coach ou assistant IA) ---------- */
 function bilanText(days){
   const since=addDays(todayIso(),-days),s=S_(),lines=[];
   lines.push(`BILAN PROGRAMME PADEL — ${days} derniers jours (du ${fr(since)} au ${fr(todayIso())})`);
-  lines.push(`Profil : joueur de ${s.side}, ${s.age} ans, ${s.height} cm. Programme commencé le ${fr(startDate())}, semaine actuelle : ${curWeek()} (cycle ${cycleOf(curWeek())}, bloc « ${blockOf(curWeek()).name} »).`);
+  lines.push(`Profil : ${s.sex==="F"?"joueuse":"joueur"} de ${s.side}${s.age?", "+s.age+" ans":""}${s.height?", "+s.height+" cm":""}. Programme commencé le ${fr(startDate())}, semaine actuelle : ${curWeek()} (cycle ${cycleOf(curWeek())}, bloc « ${blockOf(curWeek()).name} »).`);
   const ws=sortedWeights().filter(x=>x.date>=since);
   if(ws.length)lines.push(`Poids : ${ws.map(x=>fr(x.date)+" "+fmt(x.kg)+" kg").join(", ")}.`);
   const logs=Object.values(data.logs).filter(l=>l.date>=since).sort((a,b)=>a.date.localeCompare(b.date));

@@ -25,8 +25,10 @@ const WEEK_CUE={1:"Charges modérées, RPE 7 : prends le temps d'apprendre les m
 const GEN={warmup:"Échauffement adapté",warmup_dyn:"Échauffement dynamique",mobility:"Routine mobilité quotidienne",match_warmup:"Échauffement d'avant-match",between:"Entre deux matchs",post_tournament:"Récupération d'après-tournoi",overnight:"Récupération du soir (tournoi sur 2 jours)"};
 const isRight=()=>(data.settings.main&&data.settings.main.side)==="droite";
 function sideTxt(s){
-  if(!isRight()||!s)return s;
-  return String(s).replace(/Drill gauche/g,"Drill droite").replace(/côté gauche/g,"côté droit").replace(/Côté gauche/g,"Côté droit").replace(/joueur de gauche/g,"joueur de droite").replace(/Joueur de gauche/g,"Joueur de droite");
+  if(!s)return s;
+  if(data.settings.main&&data.settings.main.sex==="F")s=String(s).replace(/([Jj])oueur de (gauche|droite)/g,"$1oueuse de $2");
+  if(!isRight())return s;
+  return String(s).replace(/Drill gauche/g,"Drill droite").replace(/côté gauche/g,"côté droit").replace(/Côté gauche/g,"Côté droit").replace(/(oueu[rs]e?) de gauche/g,"$1 de droite");
 }
 // [clé exercice, séries, reps/durée, note]
 const S={
@@ -81,7 +83,7 @@ const TESTS=[
 ];
 const PADEL_FOCUS={1:"Régularité et placement : lobs de défense, sorties de vitre de ton côté.",2:"Transitions défense → attaque : bandeja et montée au filet.",3:"Finition au filet : smash par 3 / par 4, víbora, volées décisives."};
 const TDAYS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"],["none","Pas de tournoi"]];
-function tDay(w){const m=data.weeks["w"+w];if(m&&m.tournoi)return m.tournoi;const ev=typeof eventInWeek==="function"?eventInWeek(w):null;if(ev){const k=dayKeyOf(ev.date);if(["ven","sam","dim"].includes(k))return k;}return "sam";}
+function tDay(w){const m=data.weeks["w"+w];if(m&&m.tournoi)return m.tournoi;const ev=typeof eventInWeek==="function"?eventInWeek(w):null;if(ev){const k=dayKeyOf(ev.date);if(["ven","sam","dim"].includes(k))return k;}return (data.settings.main&&data.settings.main.tDefault)||"sam";}
 const ACTIVATION=[["mobility",null,"12 min","La routine guidée"],["Activation",null,"8 min","3 accélérations de 5 m, 6 split-steps, shadow des coups. Rien de lourd la veille du tournoi"]];
 const TOURNOI=(suite)=>({kind:"M",title:suite?"Tournoi (suite) / repos":"Tournoi",dur:180,place:"Tournoi",items:[["mobility",null,"12 min","Le matin, avant l'échauffement"],["match_warmup",null,"12 min","Échauffement guidé d'avant-match"],["between",null,"12 min","Entre deux matchs : routine guidée"],["post_tournament",null,"20 min","Le soir : récupération guidée"]],cue:suite?"Si tu es encore en lice, suis le protocole tournoi. Sinon repos ou 20 min de marche + mobilité.":"Coche ton sac, suis les routines guidées, puis enregistre ton tournoi et la journée (durée de jeu et RPE)."});
 function dayPlan(w,d){

@@ -169,7 +169,7 @@ function nutriQuick(){
 }
 function renderToday(){
   const t=todayIso(),dts=daysToStart(),ref=todayRef(),out=[];
-  out.push(`<div class="hello"><div class="eyebrow">${esc(frLong(t))}</div><h1>${ref?`Semaine ${ref.w}`:`Début dans ${plural(dts,"jour")}`}</h1><p class="muted">${ref?`${esc(blockOf(ref.w).name)} · cycle ${cycleOf(ref.w)}${isDeload(ref.w)?" · semaine d'allègement":""}`:`Ton programme commence le ${esc(frLong(startDate()))}.`}</p></div>`);
+  out.push(`<div class="hello"><div class="eyebrow">${S_().name?"Salut "+esc(S_().name)+" · ":""}${esc(frLong(t))}</div><h1>${ref?`Semaine ${ref.w}`:`Début dans ${plural(dts,"jour")}`}</h1><p class="muted">${ref?`${esc(blockOf(ref.w).name)} · cycle ${cycleOf(ref.w)}${isDeload(ref.w)?" · semaine d'allègement":""}`:`Ton programme commence le ${esc(frLong(startDate()))}.`}</p></div>`);
   out.push(todayExtras());
   out.push(lessonCardToday());
   out.push(alertsHtml());

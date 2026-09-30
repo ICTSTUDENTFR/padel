@@ -1,0 +1,90 @@
+/* Programme Padel — premier lancement (profil et démarrage) */
+"use strict";
+const OB={step:0,login:false,weight:null};
+const OB_STEPS=4;
+function friendlyAuthErr(m){m=String(m||"");
+  if(/invalid login|invalid_grant|credentials/i.test(m))return "e-mail ou mot de passe incorrect";
+  if(/already registered|already exists/i.test(m))return "un compte existe déjà avec cet e-mail : connecte-toi";
+  if(/not confirmed/i.test(m))return "confirme d'abord ton e-mail (regarde tes spams)";
+  if(/password/i.test(m)&&/6|short|weak/i.test(m))return "mot de passe trop court (6 caractères minimum)";
+  if(/rate|too many/i.test(m))return "trop de tentatives, réessaie dans quelques minutes";
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m))return "pas de connexion internet";
+  return m;}
+function obMondays(){const out=[],m0=nextMonday(),t=todayIso(),d=new Date();const cur=addDays(t,-((d.getDay()+6)%7));
+  if(cur!==m0)out.push([cur,"Cette semaine (lundi "+fr(cur)+")"]);
+  for(let i=0;i<4;i++){const m=addDays(m0,7*i);out.push([m,(i===0&&cur!==m0?"Lundi prochain":"Lundi")+" "+fr(m)]);}return out;}
+function obDots(){return `<div class="ob-dots" aria-label="Étape ${OB.step+1} sur ${OB_STEPS+1}">${Array.from({length:OB_STEPS+1},(_,i)=>`<i class="${i<=OB.step?"on":""}"></i>`).join("")}</div>`;}
+function obBody(){const s=S_();
+  if(OB.step===0)return `<div class="ob-hero"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M6 32h52M32 10v44" stroke="currentColor" stroke-width="2" opacity=".5"/><circle cx="46" cy="20" r="5" fill="var(--ball)"/></svg></div>
+   <h2>Bienvenue</h2>
+   <p>Ton préparateur physique de poche pour le padel : un programme sur 12 semaines adapté à tes tournois, des séances guidées avec minuteurs, une routine de mobilité quotidienne et un suivi de tes progrès.</p>
+   <p class="small muted">Deux minutes pour régler ton profil, et c'est parti.</p>
+   <form class="stack" data-onboard="0">
+    <label class="check"><input type="checkbox" name="ok" required> <span>J'ai compris que ce programme ne remplace pas un avis médical, et je consulterai un professionnel en cas de douleur ou de problème de santé.</span></label>
+    <button class="btn block" type="submit">Commencer</button></form>
+   <div class="ob-alt"><label class="linkbtn filebtn">Restaurer une sauvegarde<input type="file" id="file-import" accept="application/json,.json" hidden></label>
+    ${cloudOn()?`<button class="linkbtn" type="button" data-ob="login">J'ai déjà un compte</button>`:""}</div>
+   ${OB.login&&cloudOn()?`<form class="stack ob-login" data-syncform="1"><label>E-mail<input type="email" name="email" autocomplete="username" autocapitalize="off" required></label><label>Mot de passe<input type="password" name="pw" autocomplete="current-password" required></label>
+    <div class="actions"><button class="btn" type="submit" name="act" value="in">Se connecter</button><button class="linkbtn" type="submit" name="act" value="recover">Mot de passe oublié ?</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p></form>`:""}`;
+  if(OB.step===1)return `<div class="eyebrow">Étape 1 · Profil</div><h2>Parle-moi de toi</h2>
+   <p class="small muted">Sert à calculer tes zones cardiaques et tes besoins nutritionnels. Tout reste modifiable dans Réglages.</p>
+   <form class="stack" data-onboard="1">
+    <label>Prénom<input name="name" value="${esc(s.name||"")}" autocomplete="given-name" maxlength="30" placeholder="Facultatif"></label>
+    <div class="ob-seg" role="radiogroup" aria-label="Sexe">${[["H","Homme"],["F","Femme"]].map(([v,l])=>`<label><input type="radio" name="sex" value="${v}" ${s.sex===v?"checked":""}><span>${l}</span></label>`).join("")}</div>
+    <div class="form-row"><label>Âge<input type="number" inputmode="numeric" name="age" min="12" max="90" value="${esc(s.age??"")}" required></label>
+     <label>Taille (cm)<input type="number" inputmode="numeric" name="height" min="120" max="230" value="${esc(s.height??"")}" required></label>
+     <label>Poids (kg)<input type="number" inputmode="decimal" step="0.1" name="kg" min="35" max="200" value="${esc(OB.weight??"")}" required></label></div>
+    ${obNav()}</form>`;
+  if(OB.step===2)return `<div class="eyebrow">Étape 2 · Padel</div><h2>Ton jeu</h2>
+   <form class="stack" data-onboard="2">
+    <div class="lbl">Côté de jeu</div><div class="ob-seg" role="radiogroup" aria-label="Côté de jeu">${[["gauche","Gauche"],["droite","Droite"]].map(([v,l])=>`<label><input type="radio" name="side" value="${v}" ${s.side===v?"checked":""}><span>${l}</span></label>`).join("")}</div>
+    <div class="ob-fields"><label>Catégorie habituelle<select name="level">${LEVELS.map(l=>`<option ${s.level===l?"selected":""}>${l}</option>`).join("")}</select></label>
+     <label>Jour de tournoi habituel<select name="tDefault">${TDAY_OPTS.map(([v,l])=>`<option value="${v}" ${s.tDefault===v?"selected":""}>${l}</option>`).join("")}</select></label>
+     <label>Jour de ton cours de padel<select name="lessonDay">${LESSON_DAYS.map(([v,l])=>`<option value="${v}" ${s.lessonDay===v?"selected":""}>${l}</option>`).join("")}</select></label></div>
+    <p class="small muted">Le programme prévoit deux séances de padel par semaine et des tournois le week-end. Tu pourras ajouter tes tournois un par un : la semaine s'adapte automatiquement.</p>
+    ${obNav()}</form>`;
+  if(OB.step===3){const ms=obMondays(),cur=s.start||nextMonday();return `<div class="eyebrow">Étape 3 · Démarrage</div><h2>Quand commences-tu ?</h2>
+   <p class="small muted">Le programme démarre toujours un lundi. Avant cette date, tu peux déjà faire la mobilité et découvrir les exercices.</p>
+   <form class="stack" data-onboard="3"><div class="ob-list">${ms.map(([v,l])=>`<label><input type="radio" name="start" value="${v}" ${cur===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div>
+    ${obNav()}</form>`;}
+  const bmi=OB.weight&&s.height?OB.weight/((s.height/100)**2):null;
+  return `<div class="eyebrow">Récapitulatif</div><h2>${s.name?"C'est prêt, "+esc(s.name)+" !":"C'est prêt !"}</h2>
+   <ul class="ob-recap"><li><b>Début</b><span>${esc(frLong(s.start||nextMonday()))}</span></li><li><b>Profil</b><span>${s.sex==="F"?"Femme":"Homme"} · ${esc(s.age)} ans · ${esc(s.height)} cm${OB.weight?" · "+String(OB.weight).replace(".",",")+" kg":""}</span></li>
+    <li><b>Padel</b><span>Joueur${s.sex==="F"?"se":""} de ${s.side} · ${esc(s.level)}</span></li><li><b>Tournois</b><span>${esc((TDAY_OPTS.find(x=>x[0]===s.tDefault)||[,"Samedi"])[1])}</span></li>
+    <li><b>Zone 2 cardio</b><span>${zone2Range()} bpm</span></li></ul>
+   ${bmi&&bmi>=25?`<p class="small muted">Objectif poids : tu peux choisir une perte douce dans Réglages, les apports seront calculés pour toi.</p>`:""}
+   <form class="stack" data-onboard="4"><div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">C'est parti</button></div></form>`;}
+function obNav(){return `<div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">Continuer</button></div>`;}
+function renderOnboard(){let el=$("#onboard");
+  if(READONLY||S_().onboarded){if(el){el.remove();document.body.classList.remove("ob-open");}return;}
+  if(!el){el=document.createElement("div");el.id="onboard";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Configuration");document.body.appendChild(el);document.body.classList.add("ob-open");}
+  el.innerHTML=`<div class="ob-card">${obDots()}${obBody()}</div>`;el.scrollTop=0;
+  const first=el.querySelector("input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio])");if(first&&OB.step===1&&!first.value)setTimeout(()=>{try{first.focus({preventScroll:true});}catch(e){}},50);}
+function onboardClick(t){const a=t.dataset.ob;if(a==="back"){OB.step=Math.max(0,OB.step-1);}else if(a==="login"){OB.login=!OB.login;}renderOnboard();}
+function onboardSubmit(f){const s=S_(),n=+f.dataset.onboard,v=k=>f.elements[k]?f.elements[k].value:"";
+  if(n===1){s.name=v("name").trim().slice(0,30);s.sex=v("sex")||"H";s.age=num(v("age"));s.height=num(v("height"));OB.weight=num(v("kg"));}
+  if(n===2){s.side=v("side")||"gauche";s.level=v("level");s.tDefault=v("tDefault");s.lessonDay=v("lessonDay");}
+  if(n===3){s.start=v("start")||nextMonday();}
+  if(n===4){if(OB.weight){const id=uid();save("weights",id,{id,date:todayIso(),kg:OB.weight},{silent:true});}
+    s.onboarded=true;lsSave();state.week=null;renderOnboard();renderApp({force:true});window.scrollTo(0,0);toast(s.name?"Bienvenue "+s.name+" !":"Bienvenue !");return;}
+  lsSave();OB.step=n+1;renderOnboard();}
+
+/* Liens reçus par e-mail (confirmation de compte, mot de passe oublié) */
+function handleAuthHash(){
+  const h=(location.hash||"").slice(1);if(!/access_token=|error_description=/.test(h)||!cloudOn())return false;
+  const q=new URLSearchParams(h);history.replaceState(null,"",location.pathname+location.search);
+  if(q.get("error_description")){toast("Lien expiré ou déjà utilisé : recommence depuis Réglages",true);return true;}
+  let sub=null,email="";try{const pl=JSON.parse(atob(q.get("access_token").split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));sub=pl.sub;email=pl.email||"";}catch(e){}
+  Sync.keep({access_token:q.get("access_token"),refresh_token:q.get("refresh_token"),expires_in:+q.get("expires_in")||3600,user:{id:sub}},email);
+  if(q.get("type")==="recovery"){showPwReset();}
+  else{Sync.pull(true).then(()=>{toast("Compte confirmé : tu es connecté");renderApp({force:true});renderOnboard();}).catch(()=>{});}
+  return true;}
+function showPwReset(){let el=$("#pwreset");if(!el){el=document.createElement("div");el.id="pwreset";el.className="ob-modal";document.body.appendChild(el);}
+  el.innerHTML=`<form class="card stack" data-pwreset="1"><h2>Nouveau mot de passe</h2><label>Mot de passe (6 caractères minimum)<input type="password" name="pw" minlength="6" autocomplete="new-password" required></label>
+   <div class="actions"><button class="btn" type="submit">Enregistrer</button><button class="btn ghost" type="button" data-pwclose="1">Annuler</button></div><p class="muted small" id="pw-status"></p></form>`;}
+document.addEventListener("click",e=>{if(e.target.closest("[data-pwclose]")){const el=$("#pwreset");if(el)el.remove();}});
+document.addEventListener("submit",async e=>{const f=e.target;if(!f.dataset||!f.dataset.pwreset)return;e.preventDefault();e.stopImmediatePropagation();
+  const st=$("#pw-status"),pw=f.elements.pw.value;if(pw.length<6){st.textContent="6 caractères minimum";return;}
+  try{const c=Sync.cfg(),tk=await Sync.token();const r=await fetch(Sync.base()+"/auth/v1/user",{method:"PUT",headers:{apikey:c.key,Authorization:"Bearer "+tk,"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
+   if(!r.ok)throw new Error("Erreur "+r.status);$("#pwreset").remove();toast("Mot de passe modifié");await Sync.pull(true);renderApp({force:true});renderOnboard();}
+  catch(err){st.textContent="Échec : "+friendlyAuthErr(err.message);}},true);

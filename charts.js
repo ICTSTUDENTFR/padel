@@ -32,13 +32,14 @@ function lineChart(series,{unit="",target=null,targetLabel="objectif",invert=fal
   const legend=series.filter(s=>s.label).map(s=>`<span><i style="background:${s.color}${s.dashed?";opacity:.6":""}"></i>${esc(s.label)}</span>`).join("");
   return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Graphique">${out.join("")}</svg>${legend&&series.length>1?`<div class="clegend">${legend}</div>`:""}</div>`;
 }
-function barChart(vals,{labels,cur,colorFn,ref=null,refLabel=""}){
+function barChart(vals,{labels,cur,colorFn,ref=null,refLabel="",empty="Le graphique apparaîtra après ta première séance validée."}){
+  if(!vals.some(v=>v>0))return `<div class="empty">${esc(empty)}</div>`;
   const W=chartW(),H=Math.round(220*W/640*0.7+66),L=40,R=8,T=16,B=26,n=vals.length;
-  const mx=Math.max(...vals,ref||0,1);const ticks=niceTicks(0,mx);const yMax=ticks[ticks.length-1];
+  const mx=Math.max(...vals,ref||0,4);const ticks=niceTicks(0,mx);const yMax=ticks[ticks.length-1];
   const bw=(W-L-R)/n,Y=v=>T+(1-v/yMax)*(H-T-B);
   return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Barres">
    ${ticks.map(t=>`<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(t)}" y2="${Y(t)}"/><text class="axis" x="${L-8}" y="${Y(t)+4}" text-anchor="end">${fmt(t,0)}</text>`).join("")}
-   ${vals.map((v,i)=>`<rect x="${L+i*bw+bw*.18}" y="${Y(v)}" width="${bw*.64}" height="${Math.max(0,H-B-Y(v))}" rx="3" fill="${colorFn(i)}" opacity="${i===cur?1:.72}"><title>${labels[i]} : ${fmt(v,0)}</title></rect>${v>0&&n<=16?`<text class="axis" x="${L+i*bw+bw/2}" y="${Y(v)-5}" text-anchor="middle">${fmt(v,0)}</text>`:""}<text class="axis" x="${L+i*bw+bw/2}" y="${H-8}" text-anchor="middle" style="${i===cur?"fill:var(--ink);font-weight:600":""}">${labels[i]}</text>`).join("")}
+   ${vals.map((v,i)=>`<rect x="${L+i*bw+bw*.18}" y="${Y(v)}" width="${bw*.64}" height="${Math.max(0,H-B-Y(v))}" rx="3" fill="${colorFn(i)}" opacity="${i===cur?1:.72}"><title>${labels[i]} : ${fmt(v,0)}</title></rect>${v>0&&bw>=34?`<text class="axis" x="${L+i*bw+bw/2}" y="${Y(v)-5}" text-anchor="middle">${fmt(v,0)}</text>`:""}${bw>=30||i%2===0||i===cur?`<text class="axis" x="${L+i*bw+bw/2}" y="${H-8}" text-anchor="middle" style="${i===cur?"fill:var(--ink);font-weight:600":""}">${labels[i]}</text>`:""}`).join("")}
    ${ref?`<line x1="${L}" x2="${W-R}" y1="${Y(ref)}" y2="${Y(ref)}" stroke="var(--ink-2)" stroke-dasharray="4 4"/><text class="axis" x="${W-R}" y="${Y(ref)-5}" text-anchor="end">${esc(refLabel)}</text>`:""}
   </svg></div>`;
 }
