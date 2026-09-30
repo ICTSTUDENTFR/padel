@@ -331,11 +331,11 @@ function accountForm(ctx){const c=Sync.cfg(),up=(state.accMode||(c.pending?"in":
    <div class="actions"><button class="btn" type="submit" name="act" value="${up?"up":"in"}">${up?"Créer mon compte":"Se connecter"}</button>${up?"":`<button class="linkbtn" type="submit" name="act" value="recover" formnovalidate>Mot de passe oublié ?</button>`}</div>
    <p class="muted small" id="sync-status" role="status">${esc(Sync.status||"")}</p></form>`;}
 function pendingBox(){const c=Sync.cfg();if(!c.pending||Sync.connected())return "";
-  return `<div class="alert small"><b>Dernière étape :</b> clique sur le lien envoyé à ${esc(c.pending)} pour activer ton compte (pense aux spams), puis connecte-toi ci-dessous. <button class="linkbtn" type="button" data-resend="1">Renvoyer l'e-mail</button></div>`;}
+  return `<div class="alert small"><b>Dernière étape :</b> clique sur le lien envoyé à ${esc(c.pending)} pour activer ton compte (pense aux spams), puis touche « Se connecter ». <button class="linkbtn" type="button" data-resend="1">Renvoyer l'e-mail</button></div>`;}
 function accountCard(){if(!cloudOn())return "";const c=Sync.cfg(),con=Sync.connected();
   return `<section class="card stack" id="compte"><div><div class="eyebrow">Gratuit · facultatif</div><h2>Mon compte</h2></div>
    ${con?`<p>Connecté avec <b>${esc(c.email||"")}</b>. Tes données sont sauvegardées en ligne et synchronisées sur tous tes appareils.</p><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p><div class="actions"><button class="btn" type="button" data-sync="now">Synchroniser maintenant</button><button class="btn ghost" type="button" data-sync="out">Se déconnecter</button></div>`
-    :`<ul class="clean small acc-why"><li>Tes séances, pesées et tournois sauvegardés automatiquement</li><li>Le même programme sur ton téléphone et ton ordinateur</li><li>Rien de perdu si tu changes de téléphone</li></ul>${pendingBox()}${accountForm("settings")}`}
+    :`<ul class="clean small acc-why"><li>Tes séances, pesées et tournois sauvegardés automatiquement</li><li>Le même programme sur ton téléphone et ton ordinateur</li><li>Rien de perdu si tu changes de téléphone</li></ul>${pendingBox()}<div class="actions"><button class="btn" type="button" data-auth="in">Se connecter</button><button class="btn ghost" type="button" data-auth="up">Créer un compte</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p>`}
   </section>`;}
 SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
   return `<form class="stack" data-settings="1">

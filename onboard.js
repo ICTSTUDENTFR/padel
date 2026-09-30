@@ -1,10 +1,11 @@
 /* Programme Padel — premier lancement (profil et démarrage) */
 "use strict";
-const OB={step:0,login:false,weight:null};
+const OB={step:0,weight:null,pastAuth:false};
+const AUTH={mode:"in",ctx:null};
 const OB_STEPS=4;
 function friendlyAuthErr(m){m=String(m||"");
   if(/invalid login|invalid_grant|credentials/i.test(m))return "e-mail ou mot de passe incorrect";
-  if(/already registered|already exists|already been registered/i.test(m))return "un compte existe déjà avec cet e-mail : utilise « J'ai déjà un compte »";
+  if(/already registered|already exists|already been registered/i.test(m))return "un compte existe déjà avec cet e-mail : connecte-toi";
   if(/signups? not allowed|disabled/i.test(m))return "les inscriptions sont fermées pour le moment";
   if(/invalid.*email|email.*invalid/i.test(m))return "adresse e-mail invalide";
   if(/not confirmed/i.test(m))return "confirme d'abord ton e-mail (regarde tes spams)";
@@ -17,6 +18,7 @@ function obMondays(){const out=[],m0=nextMonday(),t=todayIso(),d=new Date();cons
   for(let i=0;i<4;i++){const m=addDays(m0,7*i);out.push([m,(i===0&&cur!==m0?"Lundi prochain":"Lundi")+" "+fr(m)]);}return out;}
 function obDots(){return `<div class="ob-dots" aria-label="Étape ${OB.step+1} sur ${OB_STEPS+1}">${Array.from({length:OB_STEPS+1},(_,i)=>`<i class="${i<=OB.step?"on":""}"></i>`).join("")}</div>`;}
 function obBody(){const s=S_();
+  if(OB.step===0&&cloudOn()&&!OB.pastAuth)return authHtml("start");
   if(OB.step===0)return `<div class="ob-hero"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M6 32h52M32 10v44" stroke="currentColor" stroke-width="2" opacity=".5"/><circle cx="46" cy="20" r="5" fill="var(--ball)"/></svg></div>
    <h2>Bienvenue</h2>
    <p>Ton préparateur physique de poche pour le padel : un programme sur 12 semaines adapté à tes tournois, des séances guidées avec minuteurs, une routine de mobilité quotidienne et un suivi de tes progrès.</p>
@@ -25,8 +27,7 @@ function obBody(){const s=S_();
     <label class="check"><input type="checkbox" name="ok" required> <span>J'ai compris que ce programme ne remplace pas un avis médical, et je consulterai un professionnel en cas de douleur ou de problème de santé.</span></label>
     <button class="btn block" type="submit">Commencer</button></form>
    <div class="ob-alt"><label class="linkbtn filebtn">Restaurer une sauvegarde<input type="file" id="file-import" accept="application/json,.json" hidden></label>
-    ${cloudOn()?`<button class="linkbtn" type="button" data-ob="login">J'ai déjà un compte</button>`:""}</div>
-   ${OB.login&&cloudOn()?`<div class="ob-login">${accountForm("onboard")}</div>`:""}`;
+    ${cloudOn()?`<button class="linkbtn" type="button" data-ob="tologin">J'ai déjà un compte</button>`:""}</div>`;
   if(OB.step===1)return `<div class="eyebrow">Étape 1 · Profil</div><h2>Parle-moi de toi</h2>
    <p class="small muted">Sert à calculer tes zones cardiaques et tes besoins nutritionnels. Tout reste modifiable dans Réglages.</p>
    <form class="stack" data-onboard="1">
@@ -68,9 +69,14 @@ function obNav(){return `<div class="ob-nav"><button class="btn ghost" type="but
 function renderOnboard(){let el=$("#onboard");
   if(READONLY||S_().onboarded){if(el){el.remove();document.body.classList.remove("ob-open");}return;}
   if(!el){el=document.createElement("div");el.id="onboard";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Configuration");document.body.appendChild(el);document.body.classList.add("ob-open");}
-  el.innerHTML=`<div class="ob-card">${obDots()}${obBody()}</div>`;el.scrollTop=0;
+  const auth=OB.step===0&&cloudOn()&&!OB.pastAuth;
+  el.innerHTML=`<div class="ob-card">${auth?"":obDots()}${obBody()}</div>`;el.scrollTop=0;
   const first=el.querySelector("input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio])");if(first&&OB.step===1&&!first.value)setTimeout(()=>{try{first.focus({preventScroll:true});}catch(e){}},50);}
-function onboardClick(t){const a=t.dataset.ob;if(a==="back"){OB.step=Math.max(0,OB.step-1);}else if(a==="login"){OB.login=!OB.login;state.accMode="in";Sync.status="";}renderOnboard();}
+function onboardClick(t){const a=t.dataset.ob;
+  if(a==="back"){OB.step=Math.max(0,OB.step-1);}
+  else if(a==="signup"||a==="noacc"){OB.pastAuth=true;OB.step=0;Sync.status="";}
+  else if(a==="tologin"){OB.pastAuth=false;AUTH.mode="in";Sync.status="";}
+  renderOnboard();}
 async function onboardSubmit(f,sb){const s=S_(),n=+f.dataset.onboard,v=k=>f.elements[k]?f.elements[k].value:"";
   if(n===1){s.name=v("name").trim().slice(0,30);s.sex=v("sex")||"H";s.age=num(v("age"));s.height=num(v("height"));OB.weight=num(v("kg"));}
   if(n===2){s.side=v("side")||"gauche";s.level=v("level");s.tDefault=v("tDefault");s.lessonDay=v("lessonDay");}
@@ -124,14 +130,54 @@ async function accountSubmit(f,act){const v=k=>f.elements[k]?f.elements[k].value
   if(act==="recover"){say("Envoi…");try{await Sync.recover(em);say("E-mail envoyé : suis le lien pour choisir un nouveau mot de passe (pense aux spams).");}catch(e){say("Échec : "+friendlyAuthErr(e.message));}return;}
   say(act==="up"?"Création du compte…":"Connexion…");
   try{if(act==="up"){const r=await Sync.signUp(em,v("pw"));
-      if(r==="confirm"){Sync.status="Compte créé ! Clique sur le lien reçu par e-mail pour l'activer.";renderApp({force:true});renderOnboard();return;}
+      if(r==="confirm"){Sync.status="Compte créé ! Clique sur le lien reçu par e-mail pour l'activer.";closeAuth();renderApp({force:true});renderOnboard();toast("Compte créé : active-le avec le lien reçu par e-mail");return;}
       Sync.status="Compte créé";toast("Compte créé : tes données sont sauvegardées");}
     else{await Sync.signIn(em,v("pw"));Sync.status="Connecté";toast("Connecté");}
-    renderApp({force:true});renderOnboard();}
+    OB.pastAuth=true;closeAuth();renderApp({force:true});renderOnboard();}
   catch(e){say("Échec : "+friendlyAuthErr(e.message));}}
 function accountNudge(){if(!cloudOn()||READONLY||Sync.connected()||Sync.cfg().pending||data.meta.main.accNudgeOff||totalDone()<1)return "";
   return `<section class="card stack acc-nudge"><div><div class="eyebrow">Ne perds rien</div><h3>Crée ton compte gratuit</h3></div>
    <p class="small">Tes séances sont pour l'instant enregistrées uniquement sur cet appareil. Avec un compte, elles sont sauvegardées et synchronisées partout.</p>
-   <div class="actions"><button class="btn" type="button" data-goto="more:reglages">Créer mon compte</button><button class="linkbtn" type="button" data-accnudge="1">Plus tard</button></div></section>`;}
+   <div class="actions"><button class="btn" type="button" data-auth="up">Créer mon compte</button><button class="btn ghost" type="button" data-auth="in">Se connecter</button><button class="linkbtn" type="button" data-accnudge="1">Plus tard</button></div></section>`;}
 function showActivated(){let el=$("#pwreset");if(!el){el=document.createElement("div");el.id="pwreset";el.className="ob-modal";document.body.appendChild(el);}
-  el.innerHTML=`<div class="card stack"><h2>Compte activé</h2><p>Ton adresse est confirmée.</p><p class="small muted">Si tu as installé l'app sur ton écran d'accueil, ouvre-la et touche « J'ai déjà un compte » (Réglages > Mon compte) pour te connecter : tes données s'y synchroniseront. Sinon, tu peux continuer ici.</p><div class="actions"><button class="btn" type="button" data-pwclose="1">Continuer ici</button></div></div>`;}
+  el.innerHTML=`<div class="card stack"><h2>Compte activé</h2><p>Ton adresse est confirmée.</p><p class="small muted">Si tu as installé l'app sur ton écran d'accueil, ouvre-la et touche « Se connecter » (Plus > Réglages > Mon compte) : tes données s'y synchroniseront. Sinon, tu peux continuer ici.</p><div class="actions"><button class="btn" type="button" data-pwclose="1">Continuer ici</button></div></div>`;}
+
+/* =====================================================================
+   Page de connexion (e-mail + mot de passe)
+   ===================================================================== */
+const AUTH_LOGO=`<svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="3"/><path d="M6 32h52M32 10v44" stroke="currentColor" stroke-width="2" opacity=".5"/><circle cx="46" cy="20" r="5" fill="var(--ball)"/></svg>`;
+function authHtml(ctx){const m=AUTH.mode,c=Sync.cfg(),start=ctx==="start";
+  const T={in:["Connexion","Retrouve ton programme, tes séances et tes progrès sur tous tes appareils."],up:["Créer un compte","Gratuit. Tes données sont sauvegardées en ligne et synchronisées entre ton téléphone et ton ordinateur."],recover:["Mot de passe oublié","Indique ton adresse : tu recevras un lien pour choisir un nouveau mot de passe."]}[m];
+  return `<div class="auth">
+   ${start?"":`<button class="auth-close" type="button" data-authclose="1" aria-label="Fermer">✕</button>`}
+   <div class="auth-brand"><div class="ob-hero">${AUTH_LOGO}</div><div class="auth-app">${esc(APP_CONFIG.name||"Programme Padel")}</div></div>
+   <h2>${T[0]}</h2><p class="small muted">${T[1]}</p>
+   <form class="stack auth-form" data-syncform="1" novalidate>
+    <label>Adresse e-mail<input type="email" name="email" value="${esc(c.email||"")}" autocomplete="${m==="up"?"email":"username"}" autocapitalize="off" autocorrect="off" spellcheck="false" inputmode="email" placeholder="toi@exemple.fr" required></label>
+    ${m!=="recover"?`<label>Mot de passe<span class="pw-wrap"><input type="password" name="pw" autocomplete="${m==="up"?"new-password":"current-password"}" minlength="6" required placeholder="${m==="up"?"6 caractères minimum":""}"><button type="button" class="pw-eye" data-pwshow="1" aria-label="Afficher le mot de passe">Afficher</button></span></label>`:""}
+    ${m==="up"?`<label>Confirme le mot de passe<input type="password" name="pw2" autocomplete="new-password" minlength="6" required></label>`:""}
+    ${m==="in"?`<button class="linkbtn auth-forgot" type="button" data-authmode="recover">Mot de passe oublié ?</button>`:""}
+    <button class="btn block" type="submit" name="act" value="${m}">${m==="in"?"Se connecter":m==="up"?"Créer mon compte":"Recevoir le lien"}</button>
+    <p class="small auth-status" id="sync-status" role="status" aria-live="polite">${esc(Sync.status||"")}</p>
+   </form>
+   <div class="auth-sep"><span>${m==="in"?"Pas encore de compte ?":"Déjà inscrit ?"}</span></div>
+   ${m==="in"?(start?`<button class="btn ghost block" type="button" data-ob="signup">Créer un compte</button>`:`<button class="btn ghost block" type="button" data-authmode="up">Créer un compte</button>`)
+     :`<button class="btn ghost block" type="button" data-authmode="in">Se connecter</button>`}
+   ${start?`<div class="ob-alt"><button class="linkbtn" type="button" data-ob="noacc">Continuer sans compte</button><label class="linkbtn filebtn">Restaurer une sauvegarde<input type="file" id="file-import" accept="application/json,.json" hidden></label></div>
+    <p class="muted small auth-note">Sans compte, tes données restent uniquement sur cet appareil.</p>`:""}
+  </div>`;}
+function openAuth(mode){if(!cloudOn()){toast("Les comptes ne sont pas disponibles pour le moment",true);return;}
+  AUTH.mode=mode||"in";AUTH.ctx="modal";Sync.status="";let el=$("#authpage");
+  if(!el){el=document.createElement("div");el.id="authpage";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Connexion");document.body.appendChild(el);document.body.classList.add("ob-open");}
+  el.innerHTML=`<div class="ob-card">${authHtml("modal")}</div>`;el.scrollTop=0;
+  const i=el.querySelector('[name=email]');if(i&&!i.value)setTimeout(()=>{try{i.focus({preventScroll:true});}catch(e){}},60);}
+function closeAuth(){const el=$("#authpage");if(el){el.remove();if(!$("#onboard"))document.body.classList.remove("ob-open");}AUTH.ctx=null;}
+function rerenderAuth(){if($("#authpage"))openAuth(AUTH.mode);else renderOnboard();}
+document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)return;const D=t.dataset;
+  if(D.auth){openAuth(D.auth);return;}
+  if(D.authclose){closeAuth();return;}
+  if(D.authmode){const email=(t.closest(".auth")||document).querySelector('[name=email]');if(email&&email.value){const c=Sync.cfg();c.email=email.value.trim();Sync.set(c);}
+    AUTH.mode=D.authmode;Sync.status="";rerenderAuth();return;}
+  if(D.pwshow){const f=t.closest("form");const show=t.textContent==="Afficher";f.querySelectorAll('input[name=pw],input[name=pw2]').forEach(i=>i.type=show?"text":"password");t.textContent=show?"Masquer":"Afficher";t.setAttribute("aria-label",show?"Masquer le mot de passe":"Afficher le mot de passe");return;}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#authpage"))closeAuth();});

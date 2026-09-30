@@ -207,7 +207,7 @@ const Sync={
   },
   schedule(){if(!this.connected())return;clearTimeout(this._t);this._t=setTimeout(()=>this.push(),2500);}
 };
-function paintSyncStatus(){const el=$("#sync-status");if(el)el.textContent=Sync.status||"";}
+function paintSyncStatus(){const el=$("#authpage #sync-status")||$("#onboard #sync-status")||$("#sync-status");if(el){el.textContent=Sync.status||"";el.classList.toggle("bad-txt",/^(Échec|Indique|Les deux|Mot de passe :)/.test(Sync.status||""));}}
 
 /* ---------- Calendrier iPhone (.ics) ---------- */
 function icsEsc(s){return String(s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");}
