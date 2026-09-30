@@ -363,12 +363,8 @@ SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
      <label>Annonces vocales<select name="voice">${opt([["1","Activées"],["0","Désactivées"]],s.voice?"1":"0")}</select></label></div>
     <div><button class="btn" type="submit">Enregistrer les réglages</button></div></section></form>
   ${accountCard()}
-  <section class="card stack"><div><div class="eyebrow">Sur cet appareil</div><h2>Sauvegarde</h2></div>
-   <p class="small">Dernière sauvegarde : ${data.meta.main.lastExport?fr(data.meta.main.lastExport):"jamais"}. Enregistre le fichier dans Fichiers, iCloud Drive ou Google Drive.</p>
-   <div class="actions"><button class="btn" type="button" data-export="1">Exporter une sauvegarde</button><label class="btn ghost filebtn">Restaurer<input type="file" id="file-import" accept="application/json,.json" hidden></label></div></section>
   ${settingsExtra()}
   ${dataCard()}
-  ${feedbackCard()}
   <section class="card stack"><h3>À propos</h3><p class="muted small">${esc(APP_CONFIG.name||"Programme Padel")} · version ${APP_VERSION}${APP_CONFIG.contactEmail?` · <a href="mailto:${esc(APP_CONFIG.contactEmail)}">Contact</a>`:""}</p></section>`;};
 
 /* ---------- Images à partager ---------- */

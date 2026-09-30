@@ -1,12 +1,12 @@
 /* Programme Padel — navigation, évènements, démarrage */
 "use strict";
-const APP_VERSION="3.6.1";
+const APP_VERSION="3.7.0";
 const TABS=[["today","Aujourd'hui",'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
  ["week","Semaine",'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
- ["lib","Exercices",'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'],
+ ["padel","Padel",'<path d="M12 2.5a6.5 6.5 0 0 0-6.5 6.5c0 2.8 1.6 5 3.8 6v5a1.5 1.5 0 0 0 1.5 1.5h2.4a1.5 1.5 0 0 0 1.5-1.5v-5c2.2-1 3.8-3.2 3.8-6A6.5 6.5 0 0 0 12 2.5z"/><path d="M10 7h.01M14 7h.01M12 9.5h.01M10 12h.01M14 12h.01"/>'],
  ["stats","Suivi",'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'],
- ["more","Plus",'<circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/>']];
-const TITLES={today:"Aujourd'hui",week:"Semaine",lib:"Exercices",stats:"Suivi",more:"Plus"};
+ ["more","Profil",'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>']];
+const TITLES={today:"Aujourd'hui",week:"Semaine",lib:"Exercices",padel:"Padel",stats:"Suivi",more:"Profil"};
 
 function applyTheme(){
   const t=S_().theme,root=document.documentElement;
@@ -20,12 +20,12 @@ function renderApp(opts={}){
   if(!opts.force&&ae&&main&&main.contains(ae)&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)&&ae.type!=="checkbox"){pendingRender=true;return;}
   pendingRender=false;
   const openD=$$("#main details[open]").map(d=>d.dataset.k).filter(Boolean);
-  const subTitle=state.tab==="more"&&state.sub?(MORE.find(m=>m[0]===state.sub)||[])[1]:null;
+  const subTitle=state.sub?subTitleOf(state.sub):null;
   $("#apptitle").textContent=subTitle||TITLES[state.tab];
   $("#appsub").textContent=state.tab==="today"?"":(todayRef()?`Semaine ${curWeek()} · ${blockOf(curWeek()).name}`:`Début le ${fr(startDate())}`);
-  const view={today:renderToday,week:renderWeek,lib:renderLib,stats:renderStats,more:renderMore}[state.tab]||renderToday;
+  const view={today:renderToday,week:renderWeek,lib:()=>`<button class="back" type="button" data-goto="week">‹ Semaine</button>`+renderLib(),padel:renderPadel,stats:renderSuivi,more:renderProfil}[state.tab]||renderToday;
   document.body.dataset.tab=state.tab;
-  if(state.tab==="more"&&state.sub)document.body.dataset.sub=state.sub;else delete document.body.dataset.sub;
+  if(state.sub)document.body.dataset.sub=state.sub;else delete document.body.dataset.sub;
   main.innerHTML=`<div class="panel">${view()}</div>`;
   openD.forEach(k=>{const d=$(`#main details[data-k="${k}"]`);if(d)d.open=true;});
   $$("#tabbar button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===state.tab?"page":"false"));
@@ -33,15 +33,17 @@ function renderApp(opts={}){
   if(typeof checkAdmin==="function")checkAdmin();
   if(typeof renderOnboard==="function"&&$("#onboard")&&S_().onboarded)renderOnboard();
 }
-function go(tab,sub){state.tab=tab;state.sub=sub??null;state.moveFor=null;saveUi();renderApp({force:true});window.scrollTo(0,0);}
+function go(tab,sub){let st=state.subtabNext||null;state.subtabNext=null;
+  if(sub){const r=resolveSub(sub);sub=r[0];if(r[1])st=r[1];tab=homeOf(sub);}
+  state.tab=tab;state.sub=sub??null;state.subtab=st;state.moveFor=null;state.allAlerts=false;saveUi();renderApp({force:true});window.scrollTo(0,0);}
 function confirmBtn(el,label,fn){if(el.dataset.confirm==="1"){fn();return;}const old=el.textContent;el.dataset.confirm="1";el.textContent=label;setTimeout(()=>{if(el.isConnected){el.dataset.confirm="";el.textContent=old;}},3000);}
 
 /* ---------- Clics ---------- */
 document.addEventListener("click",e=>{
   const t=e.target.closest("button,[data-zone],a");if(!t)return;
   const D=t.dataset;
-  if(t.closest("#tabbar")&&D.tab){if(D.tab===state.tab&&state.tab==="more")go("more",null);else go(D.tab,D.tab==="more"?state.sub:null);return;}
-  if(D.sub!=null){go("more",D.sub||null);return;}
+  if(t.closest("#tabbar")&&D.tab){go(D.tab,null);return;}
+  if(D.sub!=null){go(state.tab,D.sub||null);return;}
   if(D.goto){const [a,b]=D.goto.split(":");if(state.run)closeRunner();go(a,b||null);return;}
   if(D.update){const reg=window._swreg;if(reg&&reg.waiting)reg.waiting.postMessage({type:"SKIP_WAITING"});else location.reload();return;}
   // Coach technique

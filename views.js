@@ -223,7 +223,7 @@ function renderWeek(){
   const p=planFor(w,state.day);
   return `<section class="card" style="display:flex;flex-direction:column;gap:12px">
    <div class="sess-head"><div><div class="eyebrow">Cycle ${c} · du ${fr(dateOf(w,0))} au ${fr(dateOf(w,6))}</div><h2 style="color:${bl.color}">${esc(bl.name)}${isDeload(w)?" · allègement":""}</h2></div>
-    ${maxC>1?`<div class="filters">${Array.from({length:maxC},(_,i)=>`<button data-cyc="${i+1}" aria-pressed="${c===i+1}">Cycle ${i+1}</button>`).join("")}</div>`:""}</div>
+    <button class="chip-btn" type="button" data-goto="lib">Exercices</button>${maxC>1?`<div class="filters">${Array.from({length:maxC},(_,i)=>`<button data-cyc="${i+1}" aria-pressed="${c===i+1}">Cycle ${i+1}</button>`).join("")}</div>`:""}</div>
    <div class="strip">${strip}</div>
    <div class="meta"><span><b class="num">${st.done}/${st.planned}</b> séances</span><span>Charge <b class="num">${fmt(st.load,0)}</b> UA</span>${weekPRs(w).length?`<span><b>${weekPRs(w).length}</b> record(s)</span>`:""}</div>
    <div class="days">${DAYS.map(([d,lab],i)=>{const pl=planFor(w,d),l=data.logs[`s${w}-${d}`],dt=dateOf(w,i);

@@ -220,7 +220,11 @@ async function enablePush(){
   try{
     const perm=await Notification.requestPermission();if(perm!=="granted"){toast("Notifications refusées",true);return;}
     const r=await fetch(Sync.base()+"/functions/v1/padel-push?action=key",{headers:{apikey:c.key,Authorization:"Bearer "+c.key}});
-    const j=await r.json();if(!j.publicKey)throw new Error(j.error||"fonction padel-push introuvable");
+    const j=await r.json().catch(()=>({}));
+    if(!j.publicKey){const m=j.error||j.message||j.msg||"";
+      if(r.status===404)throw new Error("la fonction padel-push n'est pas installée sur le serveur (erreur 404)");
+      if(r.status===401||r.status===403)throw new Error("accès refusé à la fonction padel-push (erreur "+r.status+(m?" : "+m:"")+")");
+      throw new Error("fonction padel-push : erreur "+r.status+(m?" : "+m:""));}
     const reg=await navigator.serviceWorker.ready;
     const pad="=".repeat((4-j.publicKey.length%4)%4),raw=atob((j.publicKey+pad).replace(/-/g,"+").replace(/_/g,"/")),key=new Uint8Array([...raw].map(ch=>ch.charCodeAt(0)));
     const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
@@ -408,11 +412,15 @@ function settingsExtra(){
    <p class="small">Rappels de séance, de mobilité, de tournoi et d'inscription. Sur iPhone : iOS 16.4 ou plus, depuis l'icône de l'écran d'accueil uniquement.</p>
    <div class="actions">${sub?`<span class="okline">✓ Activées sur cet appareil</span><button class="btn ghost small" type="button" data-push="off">Désactiver</button>`:`<button class="btn" type="button" data-push="on" ${con?"":"disabled"}>Activer les notifications</button>`}</div>
    <div class="nq">${[["session","Séance dans 30 min"],["mobility","Mobilité du jour"],["eve","Veille de tournoi"],["deadline","Inscriptions à faire"],["weekly","Bilan du dimanche soir"]].map(([k,l])=>`<button class="chip-btn" type="button" data-npref="${k}" aria-pressed="${!!pr[k]}">${pr[k]?"✓ ":""}${l}</button>`).join("")}</div>
-   ${sub?`<p class="muted small">${((data.notif.main||{}).queue||[]).length} rappels programmés sur 14 jours.</p>`:""}</section>
-  <section class="card stack"><div><div class="eyebrow">Lecture seule</div><h2>Partager avec un coach</h2></div>
+   ${sub?`<p class="muted small">${((data.notif.main||{}).queue||[]).length} rappels programmés sur 14 jours.</p>`:""}</section>`:""}`;
+}
+function shareCard(){const sh=data.share.main,con=Sync.connected();
+  return `<section class="card stack"><div><div class="eyebrow">Lecture seule</div><h2>Partager avec un coach</h2></div>
    <p class="small">Crée un lien que ton coach ou ton partenaire peut ouvrir pour voir tes séances, charges, tests et tournois, sans rien pouvoir modifier. Tu peux le désactiver à tout moment.</p>
-   ${sh?`<div class="linkrow"><div class="mono small wrap">${esc(shareLink())}</div><button class="chip-btn" type="button" data-copy="${esc(shareLink())}">Copier</button></div><div><button class="btn ghost small" type="button" data-share="off">Désactiver le lien</button></div>`:`<div><button class="btn" type="button" data-share="on" ${con?"":"disabled"}>Créer un lien de partage</button></div>`}</section>`:""}
-  <section class="card stack"><div><div class="eyebrow">Excel, Numbers, Google Sheets</div><h2>Export tableur</h2></div>
+   ${sh?`<div class="linkrow"><div class="mono small wrap">${esc(shareLink())}</div><button class="chip-btn" type="button" data-copy="${esc(shareLink())}">Copier</button></div><div><button class="btn ghost small" type="button" data-share="off">Désactiver le lien</button></div>`:`<div><button class="btn" type="button" data-share="on" ${con?"":"disabled"}>Créer un lien de partage</button></div>`}</section>`;
+}
+function csvCard(){
+  return `<section class="card stack"><div><div class="eyebrow">Excel, Numbers, Google Sheets</div><h2>Export tableur</h2></div>
    <div class="actions">${[["seances","Séances"],["series","Séries et charges"],["poids","Poids"],["tests","Tests"],["tournois","Tournois"],["forme","Forme du matin"]].map(([k,l])=>`<button class="chip-btn" type="button" data-csv="${k}">${l}</button>`).join("")}</div></section>`;
 }
 

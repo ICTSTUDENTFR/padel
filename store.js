@@ -4,7 +4,7 @@ const COLLS=["logs","weights","tests","tournois","settings","mobilite","weeks","
 const data={};COLLS.forEach(c=>data[c]={});
 const LSK="padel-plan-v1";
 function nextMonday(){const d=new Date();const k=(8-d.getDay())%7||7;d.setDate(d.getDate()+(d.getDay()===1?0:k));return iso(d);}
-const DEFAULT_SETTINGS={start:null,name:"",side:"gauche",theme:"auto",voice:true,height:null,age:null,sex:"H",activity:1.55,deficit:0,tDefault:"sam",lessonDay:"mar",level:"P250",
+const DEFAULT_SETTINGS={simple:true,start:null,name:"",side:"gauche",theme:"auto",voice:true,height:null,age:null,sex:"H",activity:1.55,deficit:0,tDefault:"sam",lessonDay:"mar",level:"P250",
   times:{lun:"18:30",mar:"19:00",mer:"18:30",jeu:"19:00",ven:"18:30",sam:"09:00",dim:"09:00"},mobTime:"08:00"};
 const S_=()=>data.settings.main;
 
@@ -18,6 +18,7 @@ function normalize(){
   const existed=!!data.settings.main;
   if(!existed)data.settings.main={...DEFAULT_SETTINGS,start:nextMonday(),onboarded:false};
   if(existed&&data.settings.main.onboarded===undefined)data.settings.main.onboarded=true; // utilisateurs des versions précédentes
+  if(existed&&data.settings.main.simple===undefined)data.settings.main.simple=false;
   data.settings.main={...DEFAULT_SETTINGS,...data.settings.main,times:{...DEFAULT_SETTINGS.times,...(data.settings.main.times||{})}};
   if(!data.settings.main.start)data.settings.main.start=nextMonday();
   if(!data.bag.main)data.bag.main={items:BAG_DEFAULT.slice(),checked:{}};
