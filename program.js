@@ -22,7 +22,7 @@ const WEEK_CUE={1:"Charges modérées, RPE 7 : prends le temps d'apprendre les m
  2:"Regarde la charge suggérée : si la semaine passée était à RPE 7 ou moins, ajoute 2,5 à 5 kg.",
  3:"Semaine la plus dure du bloc : vise RPE 8 sur les exercices principaux.",
  4:"Semaine d'allègement : une série de moins, charges −10 à −15 %. Tests à la place de la séance de force."};
-const GEN={warmup:"Échauffement",warmup_dyn:"Échauffement dynamique",mobility:"Routine mobilité quotidienne"};
+const GEN={warmup:"Échauffement adapté",warmup_dyn:"Échauffement dynamique",mobility:"Routine mobilité quotidienne",match_warmup:"Échauffement d'avant-match",between:"Entre deux matchs",post_tournament:"Récupération d'après-tournoi",overnight:"Récupération du soir (tournoi sur 2 jours)"};
 const isRight=()=>(data.settings.main&&data.settings.main.side)==="droite";
 function sideTxt(s){
   if(!isRight()||!s)return s;
@@ -81,7 +81,7 @@ const TESTS=[
 ];
 const PADEL_FOCUS={1:"Régularité et placement : lobs de défense, sorties de vitre de ton côté.",2:"Transitions défense → attaque : bandeja et montée au filet.",3:"Finition au filet : smash par 3 / par 4, víbora, volées décisives."};
 const TDAYS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"],["none","Pas de tournoi"]];
-function tDay(w){return (data.weeks["w"+w]&&data.weeks["w"+w].tournoi)||"sam";}
+function tDay(w){const m=data.weeks["w"+w];if(m&&m.tournoi)return m.tournoi;const ev=typeof eventInWeek==="function"?eventInWeek(w):null;if(ev){const k=dayKeyOf(ev.date);if(["ven","sam","dim"].includes(k))return k;}return "sam";}
 const ACTIVATION=[["mobility",null,"12 min","La routine guidée"],["Activation",null,"8 min","3 accélérations de 5 m, 6 split-steps, shadow des coups. Rien de lourd la veille du tournoi"]];
 const TOURNOI=(suite)=>({kind:"M",title:suite?"Tournoi (suite) / repos":"Tournoi",dur:180,place:"Tournoi",items:[["mobility",null,"12 min","Le matin, avant l'échauffement"],["match_warmup",null,"12 min","Échauffement guidé d'avant-match"],["between",null,"12 min","Entre deux matchs : routine guidée"],["post_tournament",null,"20 min","Le soir : récupération guidée"]],cue:suite?"Si tu es encore en lice, suis le protocole tournoi. Sinon repos ou 20 min de marche + mobilité.":"Coche ton sac, suis les routines guidées, puis enregistre ton tournoi et la journée (durée de jeu et RPE)."});
 function dayPlan(w,d){
@@ -145,8 +145,9 @@ function planFor(w,d){
   const id=`s${w}-${d}`,adj=data.adj[id]||{};
   if(adj.short&&!p.short&&(p.kind==="A"||p.kind==="P")){p.short=true;p.userShort=true;if(p.kind==="A"){p.items=p.items.slice(0,8);p.dur=Math.round(p.dur*0.7);}}
   if(adj.home&&(p.kind==="A"||p.kind==="P"||p.kind==="T")){p.home=true;p.items=p.items.map(it=>{const a=ALT[it[0]];return a?[a.k,it[1],a.r||it[2],a.n+(it[3]?" · "+it[3]:""),it[4]]:it;});p.place="Maison";}
-  p.dl=(isDeload(w)&&"AP".includes(p.kind))||!!p.short;
   p.id=id;p.w=w;p.d=d;
+  if(typeof applyAdaptive==="function")applyAdaptive(p);
+  p.dl=(isDeload(w)&&"AP".includes(p.kind))||!!p.short;
   return p;
 }
 const rx=(s,r,dl)=>s==null?r:`${dl?Math.max(s>2?2:1,s-1):s} × ${r}`;
@@ -155,3 +156,5 @@ const setsOf=(s,dl)=>s==null?null:(dl?Math.max(s>2?2:1,s-1):s);
 /* Journée tournoi : checklist du sac par défaut */
 const BAG_DEFAULT=["Raquette + raquette de secours","Surgrips de rechange","Balles neuves","Chaussures de padel","Tenue de rechange + chaussettes","Serviette","2 L d'eau","Électrolytes","Bananes / compotes / barres","Repas ou sandwich","Élastique (échauffement et routine)","Crème / pansements / strap","Licence FFT et convocation","Chargeur de téléphone"];
 const TECH_THEMES=["Bandeja","Víbora","Smash par 3","Smash par 4","Sortie de vitre","Lob de défense","Volée","Bajada","Chiquita","Service / retour","Placement et transitions","Jeu de filet en duo"];
+
+const itDl=(p,it)=>!!p.dl&&it[5]!=="rehab";

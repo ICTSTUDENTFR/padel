@@ -5,7 +5,7 @@ try{const r=JSON.parse(localStorage.getItem("padel-ui")||"{}");if(r.tab)state.ta
 function saveUi(){try{localStorage.setItem("padel-ui",JSON.stringify({tab:state.tab,sub:state.sub}));}catch(e){}}
 
 const itemName=k=>EX[k]?exName(k):(GEN[k]||k);
-const hasTimer=(it,p)=>!!buildTimer(it[0],setsOf(it[1],p.dl),it[2],it[3],p.kind);
+const hasTimer=(it,p)=>!!buildTimer(it[0],setsOf(it[1],itDl(p,it)),it[2],it[3],p.kind,p);
 function kindChip(k){return `<span class="kchip k-${k}">${KIND_LABEL[k]||""}</span>`;}
 
 /* ---------- Saisie série par série ---------- */
@@ -18,7 +18,7 @@ function ensureLog(p){
 function unitOf(k,r){if(/^\d+\s*s\b/.test(r||""))return "s";return LOADED.has(k)?"kg":"reps";}
 function setRows(p,i,it){
   const [k,s,r]=it;if(!EX[k]||s==null||"CMR".includes(p.kind))return "";
-  const n=setsOf(s,p.dl),log=data.logs[p.id],cur=(log&&log.sets&&log.sets[i]&&log.sets[i].s)||[],u=unitOf(k,r);
+  const n=setsOf(s,itDl(p,it)),log=data.logs[p.id],cur=(log&&log.sets&&log.sets[i]&&log.sets[i].s)||[],u=unitOf(k,r);
   const last=lastPerf(k,p.id),sug=u==="kg"?suggestLoad(k,r,p.id):null,best=u==="kg"?bestOf(k,p.id):null;
   const target=parseInt(r,10)||"";
   const rows=Array.from({length:n},(_,j)=>{const v=cur[j]||{};
@@ -52,16 +52,19 @@ function itemLi(p,it,i){
   let btns="";
   if(e)btns+=`<button class="howto" type="button" data-how="${id}" aria-expanded="${open}">${open?"Masquer":"Comment faire"}</button>`;
   if(/^warmup/.test(k))btns+=`<button class="howto" type="button" data-goto="more:guide">Voir l'échauffement</button>`;
-  const tdef=buildTimer(k,setsOf(s,p.dl),r,note,p.kind);
+  const tdef=buildTimer(k,setsOf(s,itDl(p,it)),r,note,p.kind,p);
   if(tdef)btns+=timerBtn(id,tdef);
-  return `<li><span class="n">${i+1}</span><div class="li-main"><div class="nm">${esc(itemName(k))}</div>${r&&!(p.kind==="T"&&it[4])?`<div class="rx">${esc(rx(s,r,p.dl))}</div>`:""}${note?`<div class="nt">${esc(sideTxt(note))}</div>`:""}${btns?`<div class="btnrow">${btns}</div>`:""}
+  const mt=metroFor(k);if(mt)btns+=`<button class="howto" type="button" data-metro="${mt[0]}" data-metrol="${esc(mt[1])}" aria-pressed="${Metro.on&&Metro.bpm===mt[0]}">♩ Métronome ${mt[0]}</button>`;
+  return `<li><span class="n">${i+1}</span><div class="li-main"><div class="nm">${esc(itemName(k))}</div>${r&&!(p.kind==="T"&&it[4])?`<div class="rx">${esc(rx(s,r,itDl(p,it)))}</div>`:""}${note||k==="warmup"&&p.warm?`<div class="nt">${esc(sideTxt(k==="warmup"&&p.warm?p.warm.map(x=>x.l).join(" · "):note))}</div>`:""}${btns?`<div class="btnrow">${btns}</div>`:""}
     ${setRows(p,i,it)}${testInput(p,i,it)}</div>
     ${tdef?timerSlot(id):""}${e?`<div class="exd-wrap" id="d-${id}" ${open?"":"hidden"}>${open?exDetail(k):""}</div>`:""}</li>`;
 }
 /* ---------- Carnet technique (jours de padel) ---------- */
 function techBlock(p){
   if(!p.tech)return "";const ds=dateOf(p.w,DAY_KEYS.indexOf(p.d)),t=data.tech[ds]||{};
-  return `<div class="techbox"><div class="eyebrow">Objectif technique du jour</div>
+  const isLesson=p.d===lessonDay();let sugHtml="";
+  if(isLesson&&!t.theme){const s=coachSuggest(ds).list[0];if(s)sugHtml=`<div class="coachmini">Suggestion pour ton cours : <b>${esc(s.theme)}</b> <span class="muted">(${esc(s.why[0]||"axe du moment")})</span> <button class="linkbtn" data-choose="${esc(s.theme)}|${ds}">Choisir</button> · <button class="linkbtn" data-sub="cours">Voir le plan</button></div>`;}
+  return `<div class="techbox"><div class="eyebrow">${isLesson?"Mon cours de padel":"Objectif technique du jour"}</div>${sugHtml}
    <div class="form-row"><label>Thème<select data-tech="${ds}|theme"><option value="">Choisir…</option>${TECH_THEMES.map(x=>`<option ${t.theme===x?"selected":""}>${esc(x)}</option>`).join("")}</select></label>
    <label>Objectif précis<input data-tech="${ds}|goal" value="${esc(t.goal||"")}" placeholder="ex. bandeja croisée profonde, 7/10"></label>
    <label>Réussite (1–5)<select data-tech="${ds}|rating"><option value="">–</option>${[1,2,3,4,5].map(v=>`<option ${+t.rating===v?"selected":""}>${v}</option>`).join("")}</select></label></div>
@@ -76,12 +79,12 @@ function sessionFull(p){
   return `<section class="card sess" style="display:flex;flex-direction:column;gap:14px">
    <div class="sess-head">
     <div><div class="eyebrow">${DAYS[di][1]} ${fr(dateOf(p.w,di))} · Semaine ${p.w}</div><h2>${esc(p.title)}</h2></div>
-    <div class="meta"><span>≈ ${p.dur} min</span><span>${esc(p.place)}</span>${kindChip(p.kind)}${p.dl&&!p.short?`<span class="tag" style="color:var(--warn)">Allègement</span>`:""}${p.short?`<span class="tag" style="color:var(--warn)">Version courte</span>`:""}${p.home?`<span class="tag" style="color:var(--b2)">Version maison</span>`:""}${p.moved?`<span class="tag" style="color:var(--b3)">Déplacée</span>`:""}</div>
+    <div class="meta"><span>≈ ${p.dur} min</span><span>${esc(p.place)}</span>${kindChip(p.kind)}${p.dl&&!p.short?`<span class="tag" style="color:var(--warn)">Allègement</span>`:""}${p.short?`<span class="tag" style="color:var(--warn)">Version courte</span>`:""}${p.home?`<span class="tag" style="color:var(--b2)">Version maison</span>`:""}${p.moved?`<span class="tag" style="color:var(--b3)">Déplacée</span>`:""}${p.taper?`<span class="tag" style="color:var(--b3)">Affûtage</span>`:""}${p.resume?`<span class="tag" style="color:var(--b2)">Reprise</span>`:""}${p.rehab?`<span class="tag" style="color:var(--b2)">+ Renforcement</span>`:""}</div>
    </div>
    ${p.cue?`<div class="cue">${esc(sideTxt(p.cue))}</div>`:""}
    <div class="actions">
     ${p.kind!=="R"?`<button class="btn" type="button" data-run="${p.id}">${log.done?"Refaire en mode guidé":"Démarrer la séance"}</button>`:""}
-    ${canAdj?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!adj.short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!adj.home}">Pas de salle</button>`:""}
+    ${canAdj?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!adj.short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!adj.home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!adj.express}">Express 25 min</button>`:""}
     <button class="chip-btn" type="button" data-move="${p.w}|${p.d}">Déplacer</button>
    </div>
    ${state.moveFor===`${p.w}|${p.d}`?moveBox(p):""}
@@ -126,17 +129,18 @@ function checkinCard(){
   const t=todayIso(),c=data.checkins[t];
   const Q=[["sleep","Sommeil","1 très mauvais · 5 excellent"],["sore","Courbatures","1 aucune · 5 fortes"],["fatigue","Fatigue","1 frais · 5 épuisé"],["motiv","Motivation","1 aucune · 5 à fond"]];
   const draft=state.ck||c||{};
-  if(c&&!state.ckEdit){const sc=checkinScore(c),lvl=sc>=70?"ok":sc>=50?"mid":"low";
+  if(c&&c.sleep&&!state.ckEdit){const sc=checkinScore(c),lvl=sc>=70?"ok":sc>=50?"mid":"low";
     const ref=todayRef(),p=ref?planFor(ref.w,ref.d):null,adj=p?data.adj[p.id]||{}:{};
     return `<section class="card ck ck-${lvl}"><div class="sess-head"><div><div class="eyebrow">Forme du matin</div><h3>${sc}/100 · ${lvl==="ok"?"En forme":lvl==="mid"?"Correct":"Forme basse"}</h3></div><button class="chip-btn" type="button" data-ckedit="1">Modifier</button></div>
-     <p class="small">${lvl==="ok"?"Séance normale : vas-y.":lvl==="mid"?"Séance normale, mais écoute tes sensations sur les dernières séries.":"Journée à alléger : version courte, pas de série jusqu'à l'échec, et priorité au sommeil ce soir."}</p>
+     ${c.sleepH||c.hr?`<p class="muted small">${c.sleepH?fmt(c.sleepH)+" h de sommeil":""}${c.sleepH&&c.hr?" · ":""}${c.hr?"FC au réveil "+c.hr+" bpm"+(hrBaseline(t)?` (moyenne ${Math.round(hrBaseline(t))})`:""):""}</p>`:""}<p class="small">${lvl==="ok"?"Séance normale : vas-y.":lvl==="mid"?"Séance normale, mais écoute tes sensations sur les dernières séries.":"Journée à alléger : version courte, pas de série jusqu'à l'échec, et priorité au sommeil ce soir."}</p>
      ${lvl==="low"&&p&&"AP".includes(p.kind)&&!adj.short?`<button class="btn small" type="button" data-adj="${p.id}|short">Passer la séance du jour en version courte</button>`:""}</section>`;}
   return `<section class="card ck"><div class="eyebrow">Forme du matin · 30 secondes</div>
    ${Q.map(([k,l,h])=>`<div class="ckrow"><div><b>${l}</b><div class="muted small">${h}</div></div><div class="ckopts">${[1,2,3,4,5].map(v=>`<button type="button" data-ck="${k}|${v}" aria-pressed="${+draft[k]===v}">${v}</button>`).join("")}</div></div>`).join("")}
+   <div class="form-row"><label>Heures de sommeil (facultatif)<input type="number" step="0.25" inputmode="decimal" id="ck-sleepH" value="${esc(draft.sleepH??"")}" placeholder="ex. 7,5"></label><label>FC au réveil (facultatif)<input type="number" inputmode="numeric" id="ck-hr" value="${esc(draft.hr??"")}" placeholder="bpm"></label></div>
    <button class="btn" type="button" data-cksave="1" ${Q.every(([k])=>draft[k])?"":"disabled"}>Enregistrer</button></section>`;
 }
 function alertsHtml(){
-  const out=[],ref=todayRef();
+  const out=[alertsExtra()],ref=todayRef();
   painAlerts().forEach(a=>out.push(`<div class="alert bad"><b>Douleur récurrente : ${esc(a.zone)}</b> (${a.n} fois en 14 jours, jusqu'à ${a.max}/10). Allège les exercices qui la sollicitent. Si ça persiste, consulte un kiné. <button class="linkbtn" data-goto="more:douleurs">Voir</button></div>`));
   if(ref&&ref.w>1){const a=acwr(ref.w-1);if(a&&a.ratio>1.3)out.push(`<div class="alert warn"><b>Charge en forte hausse</b> : la semaine dernière était ${Math.round((a.ratio-1)*100)} % au-dessus de ta moyenne. Cette semaine, passe les séances en version courte si tu te sens lourd.</div>`);}
   if(backupDue())out.push(`<div class="alert"><b>Pense à sauvegarder</b> : ${data.meta.main.lastExport?"ta dernière sauvegarde date du "+fr(data.meta.main.lastExport)+".":"tu n'as encore jamais exporté tes données."} <button class="linkbtn" data-export="1">Exporter maintenant</button></div>`);
@@ -161,11 +165,13 @@ function nutriQuick(){
   const t=todayIso(),n=data.nutri[t]||{},T=nutritionTargets(),glasses=Math.round(T.water*4);
   return `<section class="card"><div class="sess-head"><div><div class="eyebrow">Nutrition du jour</div><h3>${T.kcal} kcal · ${T.prot} g de protéines</h3></div><button class="linkbtn" data-goto="more:nutrition">Détails</button></div>
    <div class="nq"><button class="chip-btn" type="button" data-nutri="prot" aria-pressed="${!!n.prot}">${n.prot?"✓ ":""}Protéines atteintes</button>
-   <div class="water"><span>Eau</span><button class="rbtn" type="button" data-water="-1" aria-label="Retirer un verre">−</button><b class="num">${n.water||0}/${glasses}</b><button class="rbtn" type="button" data-water="1" aria-label="Ajouter un verre">+</button><span class="muted small">verres de 25 cl</span></div></div></section>`;
+   <div class="water"><span>Eau</span><button class="rbtn" type="button" data-water="-1" aria-label="Retirer un verre">−</button><b class="num">${n.water||0}/${glasses}</b><button class="rbtn" type="button" data-water="1" aria-label="Ajouter un verre">+</button><span class="muted small">verres de 25 cl</span></div><div class="water small"><span>Café</span><button class="rbtn" type="button" data-cnt="cafe|-1">−</button><b class="num">${n.cafe||0}</b><button class="rbtn" type="button" data-cnt="cafe|1">+</button></div><div class="water small"><span>Alcool</span><button class="rbtn" type="button" data-cnt="alcool|-1">−</button><b class="num">${n.alcool||0}</b><button class="rbtn" type="button" data-cnt="alcool|1">+</button></div></div></section>`;
 }
 function renderToday(){
   const t=todayIso(),dts=daysToStart(),ref=todayRef(),out=[];
   out.push(`<div class="hello"><div class="eyebrow">${esc(frLong(t))}</div><h1>${ref?`Semaine ${ref.w}`:`Début dans ${plural(dts,"jour")}`}</h1><p class="muted">${ref?`${esc(blockOf(ref.w).name)} · cycle ${cycleOf(ref.w)}${isDeload(ref.w)?" · semaine d'allègement":""}`:`Ton programme commence le ${esc(frLong(startDate()))}.`}</p></div>`);
+  out.push(todayExtras());
+  out.push(lessonCardToday());
   out.push(alertsHtml());
   out.push(checkinCard());
   if(ref){
@@ -173,13 +179,13 @@ function renderToday(){
     out.push(`<section class="card today-sess"><div class="sess-head"><div><div class="eyebrow">Au programme aujourd'hui</div><h2>${esc(p.title)}</h2></div>${kindChip(p.kind)}</div>
       <div class="meta"><span>≈ ${p.dur} min</span><span>${esc(p.place)}</span>${p.short?`<span class="tag" style="color:var(--warn)">Version courte</span>`:""}${p.home?`<span class="tag" style="color:var(--b2)">Version maison</span>`:""}</div>
       ${p.cue?`<p class="small">${esc(sideTxt(p.cue))}</p>`:""}
-      <ol class="mini">${p.items.map(it=>`<li><span>${esc(itemName(it[0]))}</span><span class="rx">${esc(it[2]?rx(it[1],it[2],p.dl):"")}</span></li>`).join("")}</ol>
+      <ol class="mini">${p.items.map(it=>`<li><span>${esc(itemName(it[0]))}</span><span class="rx">${esc(it[2]?rx(it[1],it[2],itDl(p,it)):"")}</span></li>`).join("")}</ol>
       ${log&&log.done?`<div class="okline big">✓ Séance faite · ${log.duree||"?"} min · RPE ${log.rpe||"?"}</div>`:""}
       <div class="actions">${p.kind!=="R"?`<button class="btn big" type="button" data-run="${p.id}">${log&&log.done?"Refaire":"Démarrer la séance"}</button>`:""}
        <button class="chip-btn" type="button" data-openday="${ref.w}|${ref.d}">Détail et saisie</button>
-       ${"AP".includes(p.kind)?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!(data.adj[p.id]||{}).short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!(data.adj[p.id]||{}).home}">Pas de salle</button>`:""}</div>
+       ${"AP".includes(p.kind)?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!(data.adj[p.id]||{}).short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!(data.adj[p.id]||{}).home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!(data.adj[p.id]||{}).express}">Express</button>`:""}</div>
     </section>`);
-    if(p.kind==="M")out.push(`<section class="card"><div class="eyebrow">Jour de tournoi</div><h3>Ta journée</h3><div class="actions"><button class="chip-btn" data-goto="more:tournoi">Checklist du sac</button>${timerBtn("rt-warm",{label:"Échauffement d'avant-match",ph:ROUTINES.match_warmup.ph()},"chip-btn")}${timerBtn("rt-between",{label:"Entre deux matchs",ph:ROUTINES.between.ph()},"chip-btn")}<button class="chip-btn" data-goto="more:tournois">Noter mon tournoi</button></div>${timerSlot("rt-warm")}${timerSlot("rt-between")}</section>`);
+    if(p.kind==="M")out.push(`<section class="card"><div class="eyebrow">Jour de tournoi</div><h3>Ta journée</h3><div class="actions"><button class="chip-btn" data-goto="more:tournoi">Checklist du sac</button>${timerBtn("rt-warm",{label:"Échauffement d'avant-match",ph:ROUTINES.match_warmup.ph()},"chip-btn")}${timerBtn("rt-between",{label:"Entre deux matchs",ph:ROUTINES.between.ph()},"chip-btn")}${timerBtn("rt-br",{label:"Respiration",ph:ROUTINES.breath.ph()},"chip-btn")}<button class="chip-btn" data-goto="more:tournois">Noter mon tournoi</button></div>${timerSlot("rt-warm")}${timerSlot("rt-between")}${timerSlot("rt-br")}</section>`);
   }else{
     out.push(`<section class="card"><div class="eyebrow">En attendant le début</div><h3>Prends déjà les bonnes habitudes</h3><ul class="clean"><li>Fais la routine de mobilité chaque jour (ci-dessous).</li><li>Pèse-toi le matin du ${esc(fr(startDate()))} pour avoir un point de départ exact.</li><li>Parcours les fiches d'exercices et regarde les mouvements animés.</li><li>Règle ton côté de jeu, ton thème et la voix dans Plus → Réglages.</li></ul></section>`);
   }
@@ -239,13 +245,13 @@ function renderRunner(){
   let body="";
   if(!last){
     const it=p.items[R.idx],[k,s,r,note]=it,e=EX[k],tid="run";
-    const def=buildTimer(k,setsOf(s,p.dl),r,note,p.kind);
+    const def=buildTimer(k,setsOf(s,itDl(p,it)),r,note,p.kind,p);
     if(def){def.onManual=j=>{if(j==null)return;const inp=host.querySelector(`[data-set$="|${R.idx}|${j}|reps|${k}"]`);if(inp&&!inp.value){inp.value=parseInt(r,10)||"";onSetInput(inp);}};TMREG[tid]=def;if(TM.id!==tid){TM.id=null;tmOpen(tid);}}
     else if(TM.id)tmClose();
     body=`<div class="rstep">
       <div class="eyebrow">Étape ${R.idx+1} sur ${n}</div>
       <h2>${esc(itemName(k))}</h2>
-      ${r&&!(p.kind==="T"&&it[4])?`<div class="rx big">${esc(rx(s,r,p.dl))}</div>`:""}
+      ${r&&!(p.kind==="T"&&it[4])?`<div class="rx big">${esc(rx(s,r,itDl(p,it)))}</div>`:""}
       ${note?`<p class="small">${esc(sideTxt(note))}</p>`:""}
       ${e?figHtml(k):""}
       ${setRows(p,R.idx,it)}${testInput(p,R.idx,it)}

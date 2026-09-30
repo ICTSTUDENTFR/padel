@@ -84,6 +84,7 @@ function renderStats(){
    ${exKeys.length?exHistoryHtml(state.exKey):`<div class="empty">Tes courbes apparaîtront dès que tu saisiras des charges série par série.</div>`}
   </section>
   ${prs.length?`<section class="card stack"><div><div class="eyebrow">Tes meilleures marques</div><h2>Records</h2></div><div class="tbl-wrap"><table><thead><tr><th>Exercice</th><th class="num">Charge max</th><th class="num">1RM estimé</th></tr></thead><tbody>${prs.map(x=>`<tr><td>${esc(exName(x.k))}</td><td class="num">${fmt(x.b.kg)} kg</td><td class="num">${fmt(x.b.e1,0)} kg</td></tr>`).join("")}</tbody></table></div></section>`:""}
+  ${recoveryCharts()}
   <section class="card stack"><div><div class="eyebrow">Sommeil, courbatures, fatigue, motivation</div><h2>Forme du matin</h2></div>${lineChart([{pts:ck,color:"var(--b2)",area:true}],{unit:"/100",empty:"Remplis la forme du matin sur l'écran Aujourd'hui.",dec:0})}</section>`;
 }
 
@@ -159,7 +160,11 @@ SUBS.tournois=()=>{
     <div class="form-row"><label>Tour atteint<select name="res">${ROUNDS.map(r=>`<option>${r}</option>`).join("")}</select></label>
      <label>Points FFT gagnés<input type="number" inputmode="numeric" name="pts"></label>
      <label>Classement après<input type="number" inputmode="numeric" name="rank" placeholder="ex. 4800"></label></div>
-    <div><div class="eyebrow">Matchs</div><div class="matches">${draft.matches.map((mm,i)=>`<div class="mrow"><span class="num">${i+1}</span><input name="ms${i}" value="${esc(mm.s)}" placeholder="Score, ex. 6-4 3-6 7-5"><div class="ckopts"><button type="button" data-mres="${i}|V" aria-pressed="${mm.r==="V"}">V</button><button type="button" data-mres="${i}|D" aria-pressed="${mm.r==="D"}">D</button></div></div>`).join("")}</div>
+    <div><div class="eyebrow">Matchs</div><div class="matches">${draft.matches.map((mm,i)=>`<div class="mblock"><div class="mrow"><span class="num">${i+1}</span><input name="ms${i}" value="${esc(mm.s||"")}" placeholder="Score, ex. 6-4 3-6 7-5"><div class="ckopts"><button type="button" data-mres="${i}|V" aria-pressed="${mm.r==="V"}">V</button><button type="button" data-mres="${i}|D" aria-pressed="${mm.r==="D"}">D</button></div></div>
+      <input name="mo${i}" list="opplist" value="${esc(mm.o||"")}" placeholder="Adversaires (ex. Martin / Durand)">
+      <input name="mn${i}" value="${esc(mm.note||"")}" placeholder="Ce qui n'a pas marché (ex. bandejas trop courtes)">
+      <details><summary>Statistiques du match (facultatif)</summary><div class="form-row"><label>Points gagnants<input type="number" inputmode="numeric" name="mw${i}" value="${esc(mm.w??"")}"></label><label>Fautes directes<input type="number" inputmode="numeric" name="mue${i}" value="${esc(mm.ue??"")}"></label><label>Smashs gagnants<input type="number" inputmode="numeric" name="msm${i}" value="${esc(mm.sm??"")}"></label><label>Doubles fautes<input type="number" inputmode="numeric" name="mdf${i}" value="${esc(mm.df??"")}"></label></div></details></div>`).join("")}</div>
+     <datalist id="opplist">${Object.values(data.opps).map(o=>`<option value="${esc(o.name)}">`).join("")}</datalist>
      <button class="chip-btn" type="button" data-maddmatch="1">+ Ajouter un match</button></div>
     <div class="form-row"><label>Forme physique (1–10)<select name="physique">${Array.from({length:10},(_,k)=>`<option ${k+1===7?"selected":""}>${k+1}</option>`).join("")}</select></label>
      <label>Fin de match<select name="fin"><option>Encore frais</option><option selected>Correct</option><option>Cuit en fin de match</option><option>Crampes / douleur</option></select></label></div>
@@ -168,6 +173,7 @@ SUBS.tournois=()=>{
   <section class="card stack"><div><div class="eyebrow">Plus c'est bas, mieux c'est</div><h2>Classement FFT</h2></div>
    <form class="inline" data-rank="1"><input type="number" inputmode="numeric" name="rank" placeholder="Classement actuel"><input type="date" name="date" value="${todayIso()}"><button class="btn small" type="submit">Ajouter</button></form>
    ${lineChart([{pts:rk,color:"var(--b3)",area:false}],{unit:"e",invert:true,target:goalR,empty:"Ajoute ton classement actuel (ex. 5000).",dec:0})}</section>
+  ${tournExtraStats()}
   <section class="card stack"><div><div class="eyebrow">Préparation physique et résultats</div><h2>Analyse</h2></div>
    ${insight?`<p>${insight}</p>`:`<p class="muted small">L'analyse apparaît à partir de 4 tournois enregistrés pendant le programme.</p>`}
    ${rows.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Tournoi</th><th>Résultat</th><th class="num">V/M</th><th class="num">Forme</th><th class="num">Charge sem.</th><th class="num">Forme matin</th><th>Partenaire</th><th>Notes</th><th></th></tr></thead><tbody>
@@ -183,6 +189,7 @@ SUBS.douleurs=()=>{
    ${ZONES.map(([n,x,y])=>{const l=lvl[n]||0;return `<circle class="zone ${z===n?"sel":""}" cx="${x}" cy="${y}" r="11" fill="${l>=6?"var(--bad)":l>=3?"var(--warn)":l>0?"var(--ball)":"var(--court)"}" fill-opacity="${l?0.85:0.18}" stroke="${z===n?"var(--ink)":"transparent"}" stroke-width="2.5" data-zone="${esc(n)}"><title>${esc(n)}</title></circle>`;}).join("")}
    <text x="10" y="396" class="ftxt">droite</text><text x="190" y="396" class="ftxt" text-anchor="end">gauche</text></svg>`;
   return `<section class="card stack"><div><div class="eyebrow">Touche une zone de la silhouette</div><h2>Douleurs</h2></div>
+   <div class="actions"><button class="chip-btn" type="button" data-sub="renfo">Programmes de renforcement ciblé →</button></div>
    ${al.map(a=>`<div class="alert bad"><b>${esc(a.zone)}</b> : ${a.n} fois en 14 jours, jusqu'à ${a.max}/10. Retire ou allège les exercices qui la sollicitent. Si ça persiste ou s'aggrave, consulte un médecin ou un kiné.</div>`).join("")}
    <div class="painlayout">${body}<div class="stack">
     ${z?`<form class="stack" data-pain="1"><h3>${esc(z)}</h3><div><div class="eyebrow">Intensité</div><div class="ckopts wide">${Array.from({length:10},(_,i)=>i+1).map(v=>`<button type="button" data-plvl="${v}" aria-pressed="${state.painLvl===v}">${v}</button>`).join("")}</div><p class="muted small">1 gêne légère · 5 gêne pendant l'effort · 8 et plus : arrête l'activité</p></div>
@@ -256,7 +263,9 @@ SUBS.nutrition=()=>{
   <section class="card stack"><div><div class="eyebrow">Aujourd'hui</div><h2>Suivi du jour</h2></div>
    <div class="nq"><button class="chip-btn" type="button" data-nutri="prot" aria-pressed="${!!n.prot}">${n.prot?"✓ ":""}Protéines atteintes</button><button class="chip-btn" type="button" data-nutri="veg" aria-pressed="${!!n.veg}">${n.veg?"✓ ":""}5 fruits et légumes</button><button class="chip-btn" type="button" data-nutri="noalc" aria-pressed="${!!n.noalc}">${n.noalc?"✓ ":""}Sans alcool</button></div>
    <div class="water"><span>Eau</span><button class="rbtn" type="button" data-water="-1" aria-label="Retirer un verre">−</button><b class="num">${n.water||0}/${glasses}</b><button class="rbtn" type="button" data-water="1" aria-label="Ajouter un verre">+</button><span class="muted small">verres de 25 cl</span></div>
-   <p class="muted small">Protéines atteintes ${protDays} jours sur les 14 derniers.</p></section>
+   <div class="water"><span>Café</span><button class="rbtn" type="button" data-cnt="cafe|-1">−</button><b class="num">${n.cafe||0}</b><button class="rbtn" type="button" data-cnt="cafe|1">+</button><span>Alcool (verres)</span><button class="rbtn" type="button" data-cnt="alcool|-1">−</button><b class="num">${n.alcool||0}</b><button class="rbtn" type="button" data-cnt="alcool|1">+</button></div>
+   <p class="muted small">Protéines atteintes ${protDays} jours sur les 14 derniers.</p>${habitsInsight()}</section>
+  <section class="card"><div class="sess-head"><div><div class="eyebrow">Menus et liste de courses</div><h3>Repas de la semaine</h3></div><button class="btn small" data-sub="repas">Ouvrir</button></div></section>
   <section class="card stack"><h3>Répartir les protéines (${T.prot} g)</h3><ul class="clean"><li>Petit-déjeuner : 3 œufs ou fromage blanc 250 g (≈ 25–30 g)</li><li>Déjeuner : 150–180 g de viande, poisson ou volaille (≈ 40 g)</li><li>Collation : skyr ou shaker de whey (≈ 20–25 g)</li><li>Dîner : 150–180 g de protéine maigre ou légumineuses + œufs (≈ 40 g)</li></ul></section>
   <section class="card stack"><h3>Jours de tournoi</h3><ul class="clean"><li><b>3 h avant le 1er match :</b> riz ou pâtes + poulet ou jambon + fruit. Peu de gras, peu de fibres.</li><li><b>1 h avant :</b> banane ou compote, 500 ml d'eau.</li><li><b>Entre les matchs :</b> eau + électrolytes, banane, barre de céréales, pain d'épices, compote. Sandwich simple si plus de 2 h de pause.</li><li><b>Après :</b> dans les 2 h, repas protéines + glucides (ex. pâtes bolognaise, riz saumon). Réhydrate-toi.</li><li><b>La veille :</b> repas normal riche en glucides, pas d'alcool.</li></ul></section>
   <section class="card stack"><h3>Perdre du poids sans perdre de puissance</h3><ul class="clean"><li>Vise −0,3 à −0,5 kg par semaine, pas plus.</li><li>Garde les glucides autour des séances et des tournois, réduis-les plutôt les jours de repos.</li><li>Pèse-toi 1 à 2 fois par semaine, le matin à jeun, et regarde la moyenne sur 7 jours.</li><li>Dors 7 à 9 h : le manque de sommeil augmente la faim et freine la récupération.</li></ul></section>`;
@@ -331,6 +340,7 @@ SUBS.reglages=()=>{const s=S_(),c=Sync.cfg(),con=Sync.connected();
      <div class="form-row"><label>E-mail<input type="email" name="email" value="${esc(c.email||"")}" autocomplete="username"></label><label>Mot de passe<input type="password" name="pw" autocomplete="current-password"></label></div>
      <div class="actions"><button class="btn" type="submit" name="act" value="in">Se connecter</button><button class="btn ghost" type="submit" name="act" value="up">Créer mon compte</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p></form>`}
   </section>
+  ${settingsExtra()}
   <section class="card stack"><h3>À propos</h3><p class="muted small">Programme Padel · version ${APP_VERSION}. Données stockées sur ce téléphone${con?" et dans ton cloud Supabase":""}.</p></section>`;};
 
 /* ---------- Images à partager ---------- */
@@ -355,4 +365,35 @@ async function shareTournament(id){
   const t=data.tournois[id];if(!t)return;
   const blob=await canvasCard(`${t.cat} ${t.lieu||""}`,`Tournoi · ${fr(t.date)}`,[[t.res||"–","tour atteint"],[`${t.victoires||0}/${t.matchs||0}`,"victoires"],[`${t.physique}/10`,"forme physique"],[t.pts?"+"+t.pts:"–","points FFT"]],t.partner?`Avec ${t.partner}`:"Programme padel");
   shareFile(blob,`padel-tournoi-${t.date}.png`,"Mon tournoi");
+}
+
+/* ---------- v3 : statistiques de match, partenaires, récupération, habitudes ---------- */
+function tournExtraStats(){
+  const T=Object.values(data.tournois).filter(t=>t&&t.date);
+  const parts={};T.forEach(t=>{const p=(t.partner||"").trim();if(!p)return;const x=parts[p]=parts[p]||{n:0,m:0,v:0,best:-1,f:[]};x.n++;x.m+=+t.matchs||0;x.v+=+t.victoires||0;x.best=Math.max(x.best,ROUNDS.indexOf(t.res));if(t.physique)x.f.push(+t.physique);});
+  const ms=[];T.sort((a,b)=>a.date.localeCompare(b.date)).forEach(t=>(t.matches||[]).forEach(m=>{if([m.w,m.ue,m.sm,m.df].some(x=>num(x)!=null))ms.push({date:t.date,...m});}));
+  const last=ms.slice(-10),A=k=>{const v=last.map(m=>num(m[k])).filter(x=>x!=null);return v.length?avg(v):null;};
+  const perT=T.map(t=>{const mm=(t.matches||[]).filter(m=>num(m.w)!=null&&num(m.ue)!=null);if(!mm.length)return null;const w=mm.reduce((a,m)=>a+num(m.w),0),u=mm.reduce((a,m)=>a+num(m.ue),0);return u?{x:t.date,y:Math.round(w/u*100)/100}:null;}).filter(Boolean);
+  const pk=Object.entries(parts).sort((a,b)=>b[1].n-a[1].n);
+  return `${pk.length?`<section class="card stack"><div><div class="eyebrow">Avec qui tu gagnes</div><h2>Par partenaire</h2></div><div class="tbl-wrap"><table><thead><tr><th>Partenaire</th><th class="num">Tournois</th><th class="num">Victoires</th><th>Meilleur tour</th><th class="num">Forme moy.</th></tr></thead><tbody>${pk.map(([p,x])=>`<tr><td>${esc(p)}</td><td class="num">${x.n}</td><td class="num">${x.m?Math.round(x.v/x.m*100)+" % ("+x.v+"/"+x.m+")":"–"}</td><td>${x.best>=0?ROUNDS[x.best]:"–"}</td><td class="num">${x.f.length?fmt(avg(x.f))+"/10":"–"}</td></tr>`).join("")}</tbody></table></div></section>`:""}
+  <section class="card stack"><div><div class="eyebrow">Tes 10 derniers matchs avec statistiques</div><h2>Statistiques de match</h2></div>
+   ${last.length?`<div class="kpis sm"><div class="kpi"><div class="v num">${fmt(A("w"))}</div><div class="k">points gagnants</div></div><div class="kpi"><div class="v num">${fmt(A("ue"))}</div><div class="k">fautes directes</div></div><div class="kpi"><div class="v num">${A("w")!=null&&A("ue")?fmt(A("w")/A("ue"),2):"–"}</div><div class="k">ratio gagnants / fautes</div></div><div class="kpi"><div class="v num">${fmt(A("sm"))}</div><div class="k">smashs gagnants</div></div><div class="kpi"><div class="v num">${fmt(A("df"))}</div><div class="k">doubles fautes</div></div></div>
+    ${lineChart([{pts:perT,color:"var(--b2)",area:true}],{unit:"",target:1,targetLabel:"équilibre",dec:2,h:190,empty:""})}<p class="muted small">Ratio au-dessus de 1 : tu gagnes plus de points que tu n'en donnes.</p>`:`<p class="muted small">Ouvre « Statistiques du match » sous chaque match quand tu enregistres un tournoi (points gagnants, fautes directes, smashs, doubles fautes).</p>`}</section>`;
+}
+function recoveryCharts(){
+  const E=Object.entries(data.checkins).sort();const sl=E.filter(([,c])=>num(c.sleepH)).map(([d,c])=>({x:d,y:num(c.sleepH)})),hr=E.filter(([,c])=>num(c.hr)).map(([d,c])=>({x:d,y:num(c.hr)}));
+  if(!sl.length&&!hr.length)return "";
+  return `<section class="card stack"><div><div class="eyebrow">Sommeil et fréquence cardiaque au réveil</div><h2>Récupération</h2></div>
+   ${sl.length?lineChart([{pts:sl,color:"var(--b1)",area:true}],{unit:"h",target:7.5,targetLabel:"repère",h:180}):""}
+   ${hr.length?lineChart([{pts:hr,color:"var(--b3)"},{pts:movingAvg(hr,7),color:"var(--b3)",dashed:true,dots:false,label:"moyenne 7 j"}],{unit:"bpm",h:180,dec:0}):""}
+   <p class="muted small">Une FC au réveil supérieure de 5 à 8 bpm à ta moyenne signale une récupération incomplète (fatigue, maladie, mauvais sommeil, alcool).</p></section>`;
+}
+function habitsInsight(){
+  const days=Object.entries(data.nutri);if(days.length<7)return "";
+  const next=d=>checkinScore(data.checkins[addDays(d,1)]);
+  const grp=f=>days.filter(([d,n])=>f(n)).map(([d])=>next(d)).filter(x=>x!=null);
+  const a1=grp(n=>(n.alcool||0)>0),a0=grp(n=>!(n.alcool||0)),c1=grp(n=>(n.cafe||0)>=4),c0=grp(n=>(n.cafe||0)<4);
+  const L=[];if(a1.length>=2&&a0.length>=2)L.push(`Forme du lendemain après alcool : <b>${Math.round(avg(a1))}</b>/100, sans alcool : <b>${Math.round(avg(a0))}</b>/100.`);
+  if(c1.length>=2&&c0.length>=2)L.push(`Après 4 cafés ou plus : <b>${Math.round(avg(c1))}</b>/100, sinon : <b>${Math.round(avg(c0))}</b>/100.`);
+  return L.length?`<div class="alert small">${L.join("<br>")} <span class="muted">Évite la caféine après 16 h les veilles de tournoi.</span></div>`:"";
 }

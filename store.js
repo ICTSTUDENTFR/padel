@@ -1,6 +1,6 @@
 /* Programme Padel — données, calculs, sauvegarde, synchronisation, calendrier */
 "use strict";
-const COLLS=["logs","weights","tests","tournois","settings","mobilite","weeks","checkins","pains","ranking","adj","swaps","tech","nutri","bag","goals","meta"];
+const COLLS=["logs","weights","tests","tournois","settings","mobilite","weeks","checkins","pains","ranking","adj","swaps","tech","nutri","bag","goals","meta","events","rehab","resume","gear","opps","videos","mental","sweat","meals","pushSub","notif","share"];
 const data={};COLLS.forEach(c=>data[c]={});
 const LSK="padel-plan-v1";
 const DEFAULT_SETTINGS={start:"2026-10-05",side:"gauche",theme:"auto",voice:true,height:185,age:25,sex:"H",activity:1.55,deficit:400,
@@ -22,11 +22,12 @@ function normalize(){
   lsSave(true);
 }
 function lsSave(noTouch){
+  if(typeof READONLY!=="undefined"&&READONLY)return;
   if(!noTouch)data.meta.main.updatedAt=Date.now();
   try{localStorage.setItem(LSK,JSON.stringify(data));}catch(e){toast("Stockage plein : exporte une sauvegarde",true);}
-  if(!noTouch)Sync.schedule();
+  if(!noTouch){Sync.schedule();if(typeof scheduleNotifQueue==="function")scheduleNotifQueue();}
 }
-function save(coll,id,obj,opts={}){data[coll][id]=obj;lsSave();if(!opts.silent&&typeof renderApp==="function")renderApp();}
+function save(coll,id,obj,opts={}){if(typeof READONLY!=="undefined"&&READONLY){toast("Lecture seule",true);return;}data[coll][id]=obj;lsSave();if(!opts.silent&&typeof renderApp==="function")renderApp();}
 function remove(coll,id,opts={}){delete data[coll][id];lsSave();if(!opts.silent&&typeof renderApp==="function")renderApp();}
 
 /* ---------- Dates du programme ---------- */
@@ -52,7 +53,13 @@ function acwr(w){
   if(prev.length<2||!acute)return null;
   const chronic=avg(prev);return {acute,chronic,ratio:acute/chronic};
 }
-function checkinScore(c){if(!c)return null;return Math.round(((c.sleep-1)+(5-c.sore)+(5-c.fatigue)+(c.motiv-1))/16*100);}
+function checkinScore(c,ds){
+  if(!c||!c.sleep||!c.sore||!c.fatigue||!c.motiv)return null;
+  let s=((c.sleep-1)+(5-c.sore)+(5-c.fatigue)+(c.motiv-1))/16*100;
+  const sh=num(c.sleepH);if(sh!=null){if(sh<6)s-=10;else if(sh<7)s-=5;}
+  const hr=num(c.hr),d=ds||c.date;if(hr&&d&&typeof hrBaseline==="function"){const b=hrBaseline(d);if(b){if(hr>=b+8)s-=15;else if(hr>=b+5)s-=8;}}
+  return Math.round(clamp(s,0,100));
+}
 /* Historique des charges par exercice */
 function exHistory(key){
   const out=[];
@@ -153,6 +160,7 @@ const Sync={
     return method==="GET"?r.json():null;
   },
   async push(){
+    if(typeof READONLY!=="undefined"&&READONLY)return;
     if(!this.connected()||!navigator.onLine)return;
     try{await this.rest("POST","",{user_id:this.cfg().userId,data,updated_at:new Date(data.meta.main.updatedAt||Date.now()).toISOString()});
       this.status="Synchronisé à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});const c=this.cfg();c.last=Date.now();this.set(c);}
@@ -160,6 +168,7 @@ const Sync={
     paintSyncStatus();
   },
   async pull(first){
+    if(typeof READONLY!=="undefined"&&READONLY)return;
     if(!this.connected()||!navigator.onLine)return;
     try{
       const rows=await this.rest("GET","?select=data,updated_at");
@@ -199,6 +208,7 @@ function buildIcs(fromW,toW,opts){
         L.push("BEGIN:VEVENT","UID:padel-mob-"+w+"-"+d+"@programme-padel","DTSTAMP:"+stamp,"DTSTART:"+ds+"T"+pad(h2)+pad(m2)+"00","DTEND:"+ds+"T"+pad(h2)+pad(m2+12>59?59:m2+12)+"00","SUMMARY:Padel · Routine mobilité (12 min)","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Routine mobilité","TRIGGER:PT0M","END:VALARM","END:VEVENT");}
     });
   }
+  if(typeof upcomingEvents==="function")upcomingEvents().forEach(e=>{const s=e.date.replace(/-/g,""),en=addDays(e.end||e.date,1).replace(/-/g,"");L.push("BEGIN:VEVENT","UID:padel-ev-"+e.id+"@programme-padel","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+s,"DTEND;VALUE=DATE:"+en,"SUMMARY:"+icsEsc("Tournoi "+e.cat+" "+(e.lieu||"")),"END:VEVENT");if(e.deadline&&!e.registered){const d=e.deadline.replace(/-/g,"");L.push("BEGIN:VEVENT","UID:padel-dl-"+e.id+"@programme-padel","DTSTAMP:"+stamp,"DTSTART;VALUE=DATE:"+d,"DTEND;VALUE=DATE:"+addDays(e.deadline,1).replace(/-/g,""),"SUMMARY:"+icsEsc("Clôture inscription "+e.cat+" "+(e.lieu||"")),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Inscription","TRIGGER:-P2D","END:VALARM","END:VEVENT");}});
   L.push("END:VCALENDAR");
   return L.join("\r\n");
 }
@@ -220,6 +230,8 @@ function bilanText(days){
   const tr=Object.values(data.tournois).filter(t=>t.date>=since);
   if(tr.length){lines.push("\nTOURNOIS :");tr.forEach(t=>lines.push(`- ${fr(t.date)} ${t.cat} ${t.lieu||""} : ${t.res||"?"}, ${t.victoires||0}V/${t.matchs||0} matchs, forme ${t.physique}/10, fin de match « ${t.fin||"?"} »${t.pts?", +"+t.pts+" pts":""}${t.note?" | "+t.note:""}`));}
   const rk=latestRank();if(rk)lines.push(`Classement actuel : ${rk}e.`);
+  if(typeof upcomingEvents==="function"){const up=upcomingEvents();if(up.length)lines.push("Tournois à venir : "+up.map(e=>`${fr(e.date)} ${e.cat} ${e.lieu||""}${e.goal?" (objectif)":""}`).join(", ")+".");}
+  const rh=typeof activeRehab==="function"?activeRehab():[];if(rh.length)lines.push("Renforcement ciblé en cours : "+rh.map(z=>REHAB[z].name).join(", ")+".");
   const tests=Object.values(data.tests).sort((a,b)=>a.date.localeCompare(b.date));
   if(tests.length){lines.push("\nTESTS :");tests.forEach(t=>lines.push(`- ${fr(t.date)} : `+TESTS.filter(x=>t[x.k]!=null&&t[x.k]!=="").map(x=>`${x.name} ${t[x.k]} ${x.u}`).join(", ")));}
   const pn=Object.values(data.pains).filter(p=>p.date>=since);

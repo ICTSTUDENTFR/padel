@@ -159,3 +159,53 @@ td.wrap{white-space:normal;min-width:160px}
 @media (max-width:420px){.days{grid-template-columns:repeat(2,minmax(0,1fr))}.hello h1{font-size:34px}}
 @media (max-width:500px){.ckrow{flex-direction:column;align-items:stretch;gap:6px}.ckrow .ckopts button{flex:1}}
 .chart .axis{font-size:11px}
+
+/* ---------- v3 ---------- */
+.mono{font-family:var(--mono);word-break:break-all}
+.evrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
+.evrow.goal{border-left:4px solid var(--b3);padding-left:10px}
+.evcard.goal{border-color:var(--b3);border-width:2px}
+.evn b{font-family:var(--display);font-size:34px;line-height:1;color:var(--b3)}
+.meal{display:flex;flex-direction:column;gap:2px;padding:8px 0;border-bottom:1px solid var(--line)}
+.meal:last-child{border-bottom:0}
+.vnote{display:grid;grid-template-columns:60px 1fr auto;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.vnote a{color:var(--court);font-weight:600}
+.linkrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.linkrow>div{min-width:0}
+.on-card{border-color:var(--ok);border-width:2px}
+.gbar.full span{background:var(--bad)}
+.rhx{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+.rhx h4{margin:0;font-family:var(--display);font-size:19px}
+.mblock{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
+.mblock details summary{font-size:13px}
+.metrobar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:70;background:var(--ink);color:var(--bg);border-radius:99px;padding:8px 10px 8px 14px;display:flex;align-items:center;gap:10px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+.metrobar button{appearance:none;border:0;background:var(--bg);color:var(--ink);border-radius:99px;padding:5px 11px;font:inherit;font-weight:600;cursor:pointer}
+.mdot{width:12px;height:12px;border-radius:50%;background:var(--ball);opacity:.35}
+.mdot.pulse{animation:mp .18s ease-out}
+@keyframes mp{from{opacity:1;transform:scale(1.4)}to{opacity:.35;transform:scale(1)}}
+.robar{position:sticky;top:0;z-index:35;background:var(--b3);color:#fff;text-align:center;font-weight:600;padding:calc(6px + env(safe-area-inset-top,0px)) 12px 6px}
+body.readonly .appbar{top:0}
+body.readonly form,body.readonly .actions .btn,body.readonly [data-mob],body.readonly [data-ck],body.readonly .setrow input{pointer-events:none;opacity:.55}
+/* Tablette et ordinateur : navigation latérale, contenu en colonnes */
+@media (min-width:1000px){
+  .tabbar{left:0;right:auto;top:0;bottom:0;transform:none;width:96px;max-width:none;border-radius:0;border:0;border-right:1px solid var(--line);grid-template-columns:1fr;grid-auto-rows:min-content;align-content:start;gap:6px;padding:calc(70px + env(safe-area-inset-top,0px)) 6px 20px}
+  .tabbar button{padding:10px 0;font-size:11.5px}
+  .appbar,main.wrap{margin-left:96px}
+  .appbar-in{max-width:1200px}
+  .wrap{max-width:1200px;padding-bottom:40px}
+  body[data-tab="today"] .panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+  body[data-tab="today"] .panel>.hello,body[data-tab="today"] .panel>.alert,body[data-tab="today"] .panel>.today-sess{grid-column:1/-1}
+  body[data-tab="stats"] .panel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+  body[data-tab="stats"] .panel>.kpis{grid-column:1/-1}
+  .metrobar,#toast-global{bottom:24px}
+  .runner .rstep{max-width:900px}
+}
+
+/* Coach technique */
+.coachcard{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.coachcard.top{border-color:var(--court);border-width:2px}
+.coachcard.on{border-color:var(--ok);background:var(--ok-soft)}
+.coachwrap{gap:10px}
+ul.why-list{margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
+.plan{display:flex;flex-direction:column;gap:8px;font-size:14px;padding-top:8px}
+.coachmini{font-size:14px;background:var(--court-soft);border-radius:8px;padding:8px 10px}

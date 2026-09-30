@@ -30,8 +30,9 @@ const ROUTINES={
   {d:300,l:"Rouleau de massage",sub:"Mollets, quadriceps, haut du dos"}])},
  mobility:{label:"Routine mobilité guidée",ph:mobilityPhases}
 };
-function buildTimer(k,s,r,note,kind){
+function buildTimer(k,s,r,note,kind,p){
   const e=EX[k];r=r||"";note=note||"";
+  if(k==="warmup"&&p&&p.warm)return {label:"Échauffement guidé",ph:withPrep(p.warm)};
   if(ROUTINES[k])return {label:ROUTINES[k].label,ph:ROUTINES[k].ph()};
   if(kind==="T"&&r==="s")return {label:"Chronomètre",ph:[{k:"up",l:"Chrono",sub:e?e.n:""}]};
   if(e&&e.fig&&e.fig[0].tl){const T=e.fig[0].tl,SS=s||T.sets,sr=parseSec(T.sr)||180,ph=[{k:"rest",d:10,l:"Prépare-toi",sub:e.n}];
@@ -70,7 +71,7 @@ function tmGo(){
   const p=TM.ph[TM.i];
   if(p.k==="manual"){if(TM.onManual)TM.onManual(p.set);tmNext();return;}
   TM.run=!TM.run;
-  if(TM.run){if(p.k==="up")TM.up0=Date.now();else TM.end=Date.now()+TM.rem*1000;beep(660,.06,.15);keepAwake(true);if(TM.i===0)speak(phaseSpeech(p));}
+  if(TM.run){if(p.k==="up")TM.up0=Date.now();else TM.end=Date.now()+TM.rem*1000;beep(660,.06,.15);keepAwake(true);if(TM.i===0){if(p.say)speak(p.l+". "+p.sub);else speak(phaseSpeech(p));}}
   else if(p.k==="up")TM.upAcc+=Date.now()-TM.up0;
   tmPaint();ensureLoop();
 }
@@ -79,11 +80,11 @@ function tmNext(){
   if(TM.i>=TM.ph.length){TM.i=TM.ph.length-1;TM.run=false;TM.done=true;TM.rem=0;beep(880,.6,.3);buzz([200,100,200]);speak("Terminé, bravo");tmPaint();return;}
   const p=TM.ph[TM.i];TM.rem=p.d||0;
   if(p.k==="manual"){TM.run=false;beep(990,.3);buzz(200);}
-  else{TM.run=true;TM.end=Date.now()+TM.rem*1000;beep(p.k==="work"?990:520,.3);buzz(p.k==="work"?[120,60,120]:150);}
-  speak(phaseSpeech(p));
+  else{TM.run=true;TM.end=Date.now()+TM.rem*1000;if(p.quiet)beep(p.tone||600,.35,.12);else{beep(p.k==="work"?990:520,.3);buzz(p.k==="work"?[120,60,120]:150);}}
+  if(p.say)speak(p.l+". "+p.sub);else if(!p.quiet)speak(phaseSpeech(p));
   tmPaint();ensureLoop();
 }
-function ensureLoop(){if(tmLoop)return;tmLoop=setInterval(()=>{if(!TM.run||!TM.id)return;const p=TM.ph[TM.i];if(p.k==="up"){tmPaintTime();return;}const r=Math.max(0,Math.ceil((TM.end-Date.now())/1000));if(r!==TM.rem){TM.rem=r;if(r>0&&r<=3)beep(740,.08,.2);if(r===0){tmNext();return;}tmPaintTime();}},100);}
+function ensureLoop(){if(tmLoop)return;tmLoop=setInterval(()=>{if(!TM.run||!TM.id)return;const p=TM.ph[TM.i];if(p.k==="up"){tmPaintTime();return;}const r=Math.max(0,Math.ceil((TM.end-Date.now())/1000));if(r!==TM.rem){TM.rem=r;if(r>0&&r<=3&&!p.quiet)beep(740,.08,.2);if(r===0){tmNext();return;}tmPaintTime();}},100);}
 function tmUpSec(){return (TM.upAcc+(TM.run?Date.now()-TM.up0:0))/1000;}
 function tmPanel(){
   const p=TM.ph[TM.i],nx=TM.ph[TM.i+1],up=p.k==="up";
