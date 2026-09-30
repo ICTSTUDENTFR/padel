@@ -284,12 +284,12 @@ SUBS.tournoi=()=>{
 };
 SUBS.programme=()=>`
   <section class="card stack"><div class="eyebrow">La logique</div><h2>Des cycles de 12 semaines</h2>
-   <p>Le programme est pensé pour un joueur de compétition qui s'entraîne au padel deux fois par semaine (mardi et jeudi par défaut) et joue des tournois le week-end. Il se greffe sur ce rythme : une grosse séance le mercredi, deux compléments courts après tes entraînements padel, le lundi pour récupérer et la veille du tournoi pour arriver frais. Chaque bloc de 4 semaines finit par une semaine allégée avec des tests. Après 12 semaines, un nouveau cycle recommence avec des charges recalées sur tes progrès.</p></section>
+   <p>Le programme est pensé pour un joueur de compétition. Chaque début de semaine, tu indiques tes jours de cours, de partie et de tournoi : l'app place autour la grosse séance de force (le plus loin possible du tournoi), deux compléments courts après le padel, la récupération le lendemain du tournoi et l'activation la veille. Chaque bloc de 4 semaines finit par une semaine allégée avec des tests. À la fin des 12 semaines, l'app analyse ton cycle et te propose le suivant, orienté selon tes résultats.</p></section>
   <div class="grid3">${BLOCKS.map((b,i)=>`<section class="card block" style="--bc:${b.color}"><div class="wks">Semaines ${i*4+1}–${i*4+4} du cycle</div><h3>${esc(b.name)}</h3><p class="muted small">${esc(b.goal)}</p><ul class="clean small">${b.keys.map(k=>`<li>${esc(k)}</li>`).join("")}</ul></section>`).join("")}</div>
-  <section class="card"><h3 style="margin-bottom:10px">Semaine type (tournoi le week-end)</h3><div class="tbl-wrap"><table class="tmpl"><tbody>
-   <tr><td>Lundi</td><td>Récup active + cardio zone 2 + mobilité</td></tr><tr><td>Mardi</td><td>Padel, puis 20 min prévention & gainage</td></tr><tr><td>Mercredi</td><td>Séance principale : sauts, lancers puis force</td></tr><tr><td>Jeudi</td><td>Padel, puis 15 min finisher cardio / déplacements</td></tr><tr><td>Vendredi</td><td>Mobilité + activation 8 min, ou repos</td></tr><tr><td>Sam–Dim</td><td>Tournoi</td></tr></tbody></table></div></section>
+  <section class="card"><h3 style="margin-bottom:10px">Exemple de semaine (cours mardi, partie jeudi, tournoi samedi)</h3><div class="tbl-wrap"><table class="tmpl"><tbody>
+   <tr><td>Lundi</td><td>Repos (ou récup si tu as joué dimanche)</td></tr><tr><td>Mardi</td><td>Padel, puis 20 min prévention & gainage</td></tr><tr><td>Mercredi</td><td>Séance principale : sauts, lancers puis force</td></tr><tr><td>Jeudi</td><td>Padel, puis 15 min finisher cardio / déplacements</td></tr><tr><td>Vendredi</td><td>Veille de tournoi : mobilité + activation 8 min</td></tr><tr><td>Samedi</td><td>Tournoi</td></tr><tr><td>Dimanche</td><td>Récup active + cardio zone 2 + mobilité</td></tr></tbody></table></div></section>
   <section class="card"><h3 style="margin-bottom:10px">Règles d'ajustement</h3><ul class="clean">
-   <li><b>Jour du tournoi :</b> choisis-le chaque semaine (Aujourd'hui ou Semaine), le programme s'adapte tout seul.</li>
+   <li><b>Ta semaine :</b> renseigne tes jours de cours, de partie et de tournoi (Aujourd'hui ou Semaine), le programme s'adapte tout seul. Un tournoi ajouté dans « Tournois à venir » s'y reporte automatiquement.</li>
    <li><b>Forme basse le matin :</b> passe la séance en version courte (un bouton te le propose).</li>
    <li><b>Pas de salle :</b> « Pas de salle » remplace chaque exercice par une version maison.</li>
    <li><b>Séance impossible ce jour-là :</b> « Déplacer » l'échange avec un autre jour. Évite la force à moins de 3 jours du tournoi.</li>
@@ -320,7 +320,7 @@ SUBS.bilan=()=>{const txt=bilanText(state.bilanDays);
    <textarea id="bilantxt" rows="14" readonly>${esc(txt)}</textarea>
    <div class="actions"><button class="btn" type="button" data-copybilan="1">Copier le bilan</button></div></section>`;};
 const LEVELS=["P25","P100","P250","P500","P1000","P1500","P2000"];
-const TDAY_OPTS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"]];
+const TDAY_OPTS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"],["none","Pas de tournoi habituel"]];
 const opt=(arr,cur)=>arr.map(([v,l])=>`<option value="${esc(v)}" ${String(cur)===String(v)?"selected":""}>${esc(l)}</option>`).join("");
 function accountForm(ctx){const c=Sync.cfg(),up=(state.accMode||(c.pending?"in":"up"))==="up";
   return `<form class="stack acc-form" data-syncform="1" data-ctx="${ctx}">
@@ -351,7 +351,7 @@ SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
      <label>Côté de jeu<select name="side">${opt([["gauche","Gauche"],["droite","Droite"]],s.side)}</select></label>
      <label>Catégorie habituelle<select name="level">${opt(LEVELS.map(l=>[l,l]),s.level)}</select></label></div>
     <div class="form-row"><label>Jour de tournoi habituel<select name="tDefault">${opt(TDAY_OPTS,s.tDefault||"sam")}</select></label>
-     <label>Jour de cours / entraînement<select name="lessonDay">${opt(LESSON_DAYS,s.lessonDay||"mar")}</select></label></div></section>
+     <label>Jour de cours habituel<select name="lessonDay">${opt(LESSON_DAYS,s.lessonDay||"mar")}</select></label></div></section>
    <section class="card stack"><div><div class="eyebrow">Affichage</div><h2>Préférences</h2></div>
     <div class="form-row"><label>Thème<select name="theme">${opt([["auto","Automatique"],["light","Clair"],["dark","Sombre"]],s.theme)}</select></label>
      <label>Annonces vocales<select name="voice">${opt([["1","Activées"],["0","Désactivées"]],s.voice?"1":"0")}</select></label></div>

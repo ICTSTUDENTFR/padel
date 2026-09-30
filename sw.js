@@ -1,5 +1,5 @@
 // Programme Padel — service worker : hors ligne, mises à jour, notifications
-const VERSION = "3.3.0";
+const VERSION = "3.4.0";
 const CACHE = "padel-" + VERSION;
 const CORE = [
   "./",
@@ -12,6 +12,7 @@ const CORE = [
   "./charts.js",
   "./coach.js",
   "./config.js",
+  "./cycles.js",
   "./exercises.js",
   "./extra.js",
   "./figs.js",

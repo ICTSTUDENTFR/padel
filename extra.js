@@ -103,7 +103,7 @@ function applyAdaptive(p){
     else{p.items=p.items.slice(0,3);p.dur=Math.min(p.dur,100);}
     p.short=true;p.title+=" · express";cues.push("Version express : l'essentiel en 25–30 minutes.");}
   if(["lun","mer","ven"].includes(p.d)&&!["M","R"].includes(p.kind)){const rh=activeRehab();rh.forEach(z=>{REHAB[z].items.forEach(it=>p.items.push([it[0],it[1],it[2],"Renforcement "+REHAB[z].name.toLowerCase()+(it[3]?" · "+it[3]:""),null,"rehab"]));p.dur+=12;});if(rh.length)p.rehab=rh;}
-  if(p.kind==="M"&&p.d!=="dim"&&multiDay(p.w))p.items.push(["overnight",null,"25 min","Le soir, si tu rejoues demain"]);
+  if(p.kind==="M"&&(weekLayout(p.w)[p.d]||{}).next)p.items.push(["overnight",null,"25 min","Le soir, si tu rejoues demain"]);
   if(p.items.some(i=>i[0]==="warmup"))p.warm=warmupFor(p);
   if(cues.length)p.cue=cues.join(" ")+(p.cue?" "+p.cue:"");
   return p;

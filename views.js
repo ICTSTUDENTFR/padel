@@ -62,7 +62,7 @@ function itemLi(p,it,i){
 /* ---------- Carnet technique (jours de padel) ---------- */
 function techBlock(p){
   if(!p.tech)return "";const ds=dateOf(p.w,DAY_KEYS.indexOf(p.d)),t=data.tech[ds]||{};
-  const isLesson=p.d===lessonDay();let sugHtml="";
+  const isLesson=p.padel?p.padel==="cours":isLessonDate(dateOf(p.w,DAY_KEYS.indexOf(p.d)));let sugHtml="";
   if(isLesson&&!t.theme){const s=coachSuggest(ds).list[0];if(s)sugHtml=`<div class="coachmini">Suggestion pour ton cours : <b>${esc(s.theme)}</b> <span class="muted">(${esc(s.why[0]||"axe du moment")})</span> <button class="linkbtn" data-choose="${esc(s.theme)}|${ds}">Choisir</button> · <button class="linkbtn" data-sub="cours">Voir le plan</button></div>`;}
   return `<div class="techbox"><div class="eyebrow">${isLesson?"Mon cours de padel":"Objectif technique du jour"}</div>${sugHtml}
    <div class="form-row"><label>Thème<select data-tech="${ds}|theme"><option value="">Choisir…</option>${TECH_THEMES.map(x=>`<option ${t.theme===x?"selected":""}>${esc(x)}</option>`).join("")}</select></label>
@@ -107,10 +107,10 @@ function logForm(p){
 }
 /* ---------- Déplacer une séance ---------- */
 function moveBox(p){
-  const w=p.w,T=tDay(w),tIdx={ven:4,sam:5,dim:6}[T];
+  const w=p.w,tds=tournamentDays(w).map(k=>DAY_KEYS.indexOf(k));
   return `<div class="movebox"><div class="eyebrow">Échanger ${DAYS[DAY_KEYS.indexOf(p.d)][1].toLowerCase()} avec…</div><div class="filters">${DAYS.filter(([d])=>d!==p.d).map(([d,l],i)=>{
     const di=DAY_KEYS.indexOf(d),src=planFor(w,p.d);let warn="";
-    if(src.kind==="A"&&tIdx!=null&&tIdx-di<3&&tIdx-di>=0)warn=" ⚠";
+    if(src.kind==="A"&&tds.some(ti=>ti-di<3&&ti-di>=0))warn=" ⚠";
     return `<button type="button" data-swap="${w}|${p.d}|${d}" title="${warn?"Moins de 3 jours avant le tournoi":""}">${l.slice(0,3)}${warn}</button>`;}).join("")}
    ${data.swaps["w"+w]&&Object.keys(data.swaps["w"+w]).length?`<button type="button" data-swapreset="${w}">Annuler les déplacements</button>`:""}</div>
    <p class="muted small">⚠ = la séance de force tomberait à moins de 3 jours du tournoi. Possible, mais passe-la en version courte.</p></div>`;
@@ -168,8 +168,10 @@ function nutriQuick(){
    <div class="water"><span>Eau</span><button class="rbtn" type="button" data-water="-1" aria-label="Retirer un verre">−</button><b class="num">${n.water||0}/${glasses}</b><button class="rbtn" type="button" data-water="1" aria-label="Ajouter un verre">+</button><span class="muted small">verres de 25 cl</span></div><div class="water small"><span>Café</span><button class="rbtn" type="button" data-cnt="cafe|-1">−</button><b class="num">${n.cafe||0}</b><button class="rbtn" type="button" data-cnt="cafe|1">+</button></div><div class="water small"><span>Alcool</span><button class="rbtn" type="button" data-cnt="alcool|-1">−</button><b class="num">${n.alcool||0}</b><button class="rbtn" type="button" data-cnt="alcool|1">+</button></div></div></section>`;
 }
 function renderToday(){
-  const t=todayIso(),dts=daysToStart(),ref=todayRef(),out=[];
-  out.push(`<div class="hello"><div class="eyebrow">${S_().name?"Salut "+esc(S_().name)+" · ":""}${esc(frLong(t))}</div><h1>${ref?`Semaine ${ref.w}`:`Début dans ${plural(dts,"jour")}`}</h1><p class="muted">${ref?`${esc(blockOf(ref.w).name)} · cycle ${cycleOf(ref.w)}${isDeload(ref.w)?" · semaine d'allègement":""}`:`Ton programme commence le ${esc(frLong(startDate()))}.`}</p></div>`);
+  const t=todayIso(),dts=daysToStart(),ref=todayRef(),gap=cycleGap(),out=[];
+  out.push(`<div class="hello"><div class="eyebrow">${S_().name?"Salut "+esc(S_().name)+" · ":""}${esc(frLong(t))}</div><h1>${ref?`Semaine ${ref.w}`:gap?`Cycle ${gap.c} terminé`:`Début dans ${plural(dts,"jour")}`}</h1><p class="muted">${ref?`${esc(blockOf(ref.w).name)} · cycle ${cycleOf(ref.w)}${isDeload(ref.w)?" · semaine d'allègement":""}`:gap?(gap.next?`Prochain cycle le ${esc(frLong(gap.next))}.`:"Ton bilan est prêt."):`Ton programme commence le ${esc(frLong(startDate()))}.`}</p></div>`);
+  out.push(cycleTodayCard());
+  out.push(weekPlanCard());
   out.push(todayExtras());
   out.push(lessonCardToday());
   out.push(alertsHtml());
@@ -187,13 +189,12 @@ function renderToday(){
        ${"AP".includes(p.kind)?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!(data.adj[p.id]||{}).short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!(data.adj[p.id]||{}).home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!(data.adj[p.id]||{}).express}">Express</button>`:""}</div>
     </section>`);
     if(p.kind==="M")out.push(`<section class="card"><div class="eyebrow">Jour de tournoi</div><h3>Ta journée</h3><div class="actions"><button class="chip-btn" data-goto="more:tournoi">Checklist du sac</button>${timerBtn("rt-warm",{label:"Échauffement d'avant-match",ph:ROUTINES.match_warmup.ph()},"chip-btn")}${timerBtn("rt-between",{label:"Entre deux matchs",ph:ROUTINES.between.ph()},"chip-btn")}${timerBtn("rt-br",{label:"Respiration",ph:ROUTINES.breath.ph()},"chip-btn")}<button class="chip-btn" data-goto="more:tournois">Noter mon tournoi</button></div>${timerSlot("rt-warm")}${timerSlot("rt-between")}${timerSlot("rt-br")}</section>`);
-  }else{
+  }else if(!gap){
     out.push(`<section class="card"><div class="eyebrow">En attendant le début</div><h3>Prends déjà les bonnes habitudes</h3><ul class="clean"><li>Fais la routine de mobilité chaque jour (ci-dessous).</li><li>Pèse-toi le matin du ${esc(fr(startDate()))} pour avoir un point de départ exact.</li><li>Parcours les fiches d'exercices et regarde les mouvements animés.</li><li>Règle ton côté de jeu, ton thème et la voix dans Plus → Réglages.</li></ul></section>`);
   }
   const mdone=!!data.mobilite[t];
   out.push(`<section class="card"><div class="sess-head"><div><div class="eyebrow">Mobilité quotidienne · 12 min</div><h3>${mdone?"✓ Faite aujourd'hui":"À faire aujourd'hui"}</h3></div><span class="muted small">Série : ${plural(mobStreak(),"jour")}</span></div>
     <div class="actions">${timerBtn("mob-today",{label:"Lancer la routine guidée",ph:mobilityPhases(),onDone:()=>{}},"btn ghost")}<button class="chip-btn" type="button" data-mob="${t}" aria-pressed="${mdone}">${mdone?"Annuler":"Marquer comme faite"}</button></div>${timerSlot("mob-today")}</section>`);
-  if(ref){const w=ref.w;out.push(`<section class="card"><div class="eyebrow">Mon tournoi cette semaine commence</div><div class="filters">${TDAYS.map(([k,l])=>`<button data-tday="${w}|${k}" aria-pressed="${tDay(w)===k}">${l}</button>`).join("")}</div><p class="muted small">Le programme de la semaine s'adapte automatiquement.</p></section>`);}
   const ws=sortedWeights(),lw=ws[ws.length-1];
   out.push(`<section class="card"><div class="sess-head"><div><div class="eyebrow">Poids</div><h3>${lw?fmt(lw.kg)+" kg":"–"} <span class="muted small">${lw?"le "+fr(lw.date):""}</span></h3></div><button class="linkbtn" data-goto="stats">Courbe</button></div>
     <form class="inline" data-quickweight="1"><input type="number" step="0.1" inputmode="decimal" name="kg" placeholder="Pesée du jour (kg)" aria-label="Poids du jour"><button class="btn small" type="submit">Ajouter</button></form></section>`);
@@ -214,19 +215,19 @@ function mobRow(w){
 }
 function renderWeek(){
   const cw=curWeek();if(state.week==null)state.week=cw;
-  const w=state.week,c=cycleOf(w),maxC=Math.max(cycleOf(cw)+1,2),bl=blockOf(w),st=weekStats(w),tdy=todayIso();
+  const w=state.week,c=cycleOf(w),maxC=launchedCycles(),bl=blockOf(w),st=weekStats(w),tdy=todayIso();
   if(!state.day){const idx=DAYS.findIndex((_,i)=>dateOf(w,i)===tdy);state.day=DAY_KEYS[idx>=0?idx:2];}
   const strip=Array.from({length:12},(_,i)=>{const ww=(c-1)*12+i+1,b=blockOf(ww),s2=weekStats(ww);
     return `<button class="wk ${ww===w?"sel":""} ${ww===cw?"now":""}" data-week="${ww}" aria-pressed="${ww===w}" aria-label="Semaine ${ww}">S${ww}<span class="bar" style="background:${b.color};opacity:${isDeload(ww)?.45:1}"></span><span class="dl">${s2.done?s2.done+"✓":isDeload(ww)?"allèg.":"&nbsp;"}</span></button>`;}).join("");
   const p=planFor(w,state.day);
   return `<section class="card" style="display:flex;flex-direction:column;gap:12px">
    <div class="sess-head"><div><div class="eyebrow">Cycle ${c} · du ${fr(dateOf(w,0))} au ${fr(dateOf(w,6))}</div><h2 style="color:${bl.color}">${esc(bl.name)}${isDeload(w)?" · allègement":""}</h2></div>
-    <div class="filters">${Array.from({length:maxC},(_,i)=>`<button data-cyc="${i+1}" aria-pressed="${c===i+1}">Cycle ${i+1}</button>`).join("")}</div></div>
+    ${maxC>1?`<div class="filters">${Array.from({length:maxC},(_,i)=>`<button data-cyc="${i+1}" aria-pressed="${c===i+1}">Cycle ${i+1}</button>`).join("")}</div>`:""}</div>
    <div class="strip">${strip}</div>
    <div class="meta"><span><b class="num">${st.done}/${st.planned}</b> séances</span><span>Charge <b class="num">${fmt(st.load,0)}</b> UA</span>${weekPRs(w).length?`<span><b>${weekPRs(w).length}</b> record(s)</span>`:""}</div>
    <div class="days">${DAYS.map(([d,lab],i)=>{const pl=planFor(w,d),l=data.logs[`s${w}-${d}`],dt=dateOf(w,i);
      return `<button class="day ${d===state.day?"sel":""} ${l&&l.done?"done":""} ${dt===tdy?"today":""}" data-day="${d}"><span class="d"><span>${lab.slice(0,3)}</span><span>${fr(dt)}</span></span><span class="t">${esc(pl.title)}</span><span class="chip">${l&&l.done?"Fait":KIND_LABEL[pl.kind]}${pl.moved?" ↔":""}</span></button>`;}).join("")}</div>
-   <div class="tsel"><span class="eyebrow">Tournoi cette semaine</span><div class="filters">${TDAYS.map(([k,l])=>`<button data-tday="${w}|${k}" aria-pressed="${tDay(w)===k}">${l}</button>`).join("")}</div></div>
+   <details class="wp-det" data-k="wplan-${w}" ${weekConfirmed(w)?"":"open"}><summary><span class="eyebrow">Mes jours de padel et tournois</span><span class="small">${esc(weekSummary(w))}${weekConfirmed(w)?"":" · à valider"}</span></summary>${weekPlannerHtml(w,{compact:true})}</details>
    ${mobRow(w)}
   </section>
   ${sessionFull(p)}`;

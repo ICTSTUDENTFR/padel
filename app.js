@@ -1,6 +1,6 @@
 /* Programme Padel — navigation, évènements, démarrage */
 "use strict";
-const APP_VERSION="3.3.0";
+const APP_VERSION="3.4.0";
 const TABS=[["today","Aujourd'hui",'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
  ["week","Semaine",'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
  ["lib","Exercices",'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'],
@@ -171,7 +171,7 @@ document.addEventListener("submit",async e=>{
   if(F.goaladd){const type=v("type"),id=uid();let label=type==="poids"?"Poids":type==="classement"?"Classement FFT":type.startsWith("exo:")?exName(type.slice(4))+" (1RM estimé)":(TESTS.find(t=>"test:"+t.k===type)||{}).name;const unit=type==="poids"?"kg":type==="classement"?"e":type.startsWith("exo:")?"kg":(TESTS.find(t=>"test:"+t.k===type)||{}).u;save("goals",id,{id,type,label,target:num(v("target")),unit});toast("Objectif ajouté");return;}
   if(F.techadd){const id=uid();save("tech",id,{id,date:v("date"),theme:v("theme"),rating:v("rating"),goal:v("goal").trim(),notes:v("notes").trim()});toast("Note ajoutée");return;}
   if(F.bagadd){const x=v("item").trim();if(!x)return;data.bag.main.items.push(x);lsSave();renderApp({force:true});return;}
-  if(F.evadd){const id=uid(),e={id,date:v("date"),end:v("end")||null,cat:v("cat"),lieu:v("lieu").trim(),deadline:v("deadline")||null,note:v("note").trim(),goal:f.elements.goal.checked,registered:f.elements.registered.checked};if(!e.date)return;save("events",id,e);toast(e.goal?"Tournoi objectif ajouté : affûtage programmé":"Tournoi ajouté : la semaine s'adapte");return;}
+  if(F.evadd){const id=uid(),e={id,date:v("date"),end:v("end")||null,cat:v("cat"),lieu:v("lieu").trim(),deadline:v("deadline")||null,note:v("note").trim(),goal:f.elements.goal.checked,registered:f.elements.registered.checked};if(!e.date)return;syncEventToWeeks(e);save("events",id,e);toast(e.goal?"Tournoi objectif ajouté : affûtage programmé":"Tournoi ajouté : la semaine s'adapte");return;}
   if(F.oppadd){const id=uid();save("opps",id,{id,name:v("name").trim(),club:v("club").trim(),forts:v("forts").trim(),faibles:v("faibles").trim(),plan:v("plan").trim()});toast("Paire ajoutée");return;}
   if(F.mjournal){const id=uid();save("mental",id,{id,kind:"journal",date:v("date"),conf:+v("conf"),good:v("good").trim(),next:v("next").trim()});toast("Journal enregistré");return;}
   if(F.gearadd){const id=uid();save("gear",id,{id,type:v("type"),name:v("name").trim(),since:v("since")||todayIso(),limit:num(v("limit"))});toast("Matériel ajouté");return;}

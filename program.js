@@ -83,37 +83,90 @@ const TESTS=[
 ];
 const PADEL_FOCUS={1:"Régularité et placement : lobs de défense, sorties de vitre de ton côté.",2:"Transitions défense → attaque : bandeja et montée au filet.",3:"Finition au filet : smash par 3 / par 4, víbora, volées décisives."};
 const TDAYS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"],["none","Pas de tournoi"]];
-function tDay(w){const m=data.weeks["w"+w];if(m&&m.tournoi)return m.tournoi;const ev=typeof eventInWeek==="function"?eventInWeek(w):null;if(ev){const k=dayKeyOf(ev.date);if(["ven","sam","dim"].includes(k))return k;}return (data.settings.main&&data.settings.main.tDefault)||"sam";}
 const ACTIVATION=[["mobility",null,"12 min","La routine guidée"],["Activation",null,"8 min","3 accélérations de 5 m, 6 split-steps, shadow des coups. Rien de lourd la veille du tournoi"]];
 const TOURNOI=(suite)=>({kind:"M",title:suite?"Tournoi (suite) / repos":"Tournoi",dur:180,place:"Tournoi",items:[["mobility",null,"12 min","Le matin, avant l'échauffement"],["match_warmup",null,"12 min","Échauffement guidé d'avant-match"],["between",null,"12 min","Entre deux matchs : routine guidée"],["post_tournament",null,"20 min","Le soir : récupération guidée"]],cue:suite?"Si tu es encore en lice, suis le protocole tournoi. Sinon repos ou 20 min de marche + mobilité.":"Coche ton sac, suis les routines guidées, puis enregistre ton tournoi et la journée (durée de jeu et RPE)."});
+/* ---------- Ta semaine : jours de padel et de tournoi ---------- */
+const WP_TYPES=[["","—"],["cours","Cours"],["partie","Partie"],["tournoi","Tournoi"]];
+const PADEL_LABEL={cours:"Cours de padel",partie:"Partie de padel"};
+function evDaysInWeek(w){const a=dateOf(w,0),b=dateOf(w,6),out=new Set();
+  if(!data.events)return out;
+  Object.values(data.events).forEach(e=>{if(!e||!e.date)return;const end=e.end&&e.end>e.date?e.end:e.date;
+    DAY_KEYS.forEach((k,i)=>{const d=dateOf(w,i);if(d>=e.date&&d<=end&&d>=a&&d<=b)out.add(k);});});
+  return out;}
+function defaultWeekInput(w){const s=data.settings.main||{},plan={},m=data.weeks["w"+w]||{};
+  const ev=evDaysInWeek(w);
+  if(ev.size)ev.forEach(k=>plan[k]="tournoi");
+  else{const T=m.tournoi||s.tDefault||"sam";if(T!=="none"&&DAY_KEYS.includes(T))plan[T]="tournoi";}
+  const ld=s.lessonDay||"mar",other=ld==="jeu"?"mar":"jeu";
+  if(!plan[ld])plan[ld]="cours";
+  if(!plan[other])plan[other]="partie";
+  return plan;}
+function weekInput(w){const m=data.weeks["w"+w];return m&&m.plan?{...m.plan}:defaultWeekInput(w);}
+function weekConfirmed(w){const m=data.weeks["w"+w];return !!(m&&m.confirmed);}
+function tournamentDays(w){const inp=weekInput(w);return DAY_KEYS.filter(k=>inp[k]==="tournoi");}
+function tDay(w){const t=tournamentDays(w);return t.length?t[0]:"none";}
+function cycleCfg(w){const cs=(data.settings.main&&data.settings.main.cycles)||{};return cs[cycleOf(w)]||{};}
+/* Répartition automatique des séances autour du padel et des tournois */
+function weekLayout(w){
+  const inp=weekInput(w),K=DAY_KEYS,out={},cfg=cycleCfg(w);
+  const isT=i=>inp[K[i]]==="tournoi";
+  const tIdx=K.map((k,i)=>i).filter(isT);
+  const prevSunT=w>1&&weekInput(w-1).dim==="tournoi";
+  const distNext=i=>{const n=tIdx.find(j=>j>i);return n==null?99:n-i;};
+  const afterT=i=>i>0?isT(i-1):prevSunT;
+  K.forEach((k,i)=>{if(isT(i))out[k]={t:"M",suite:i>0&&isT(i-1),next:i<6&&isT(i+1)};else if(inp[k])out[k]={t:"P",padel:inp[k]};});
+  K.forEach((k,i)=>{if(!out[k]&&afterT(i))out[k]={t:"C",after:true};});
+  K.forEach((k,i)=>{if(distNext(i)===1){if(!out[k])out[k]={t:"V"};else if(out[k].t==="P")out[k].veille=true;}});
+  // Séance principale (ou tests) : jour libre le plus loin du tournoi, de préférence en milieu de semaine
+  const score=i=>{const dn=distNext(i);let s=dn>=3?100:dn===2?50:-999;s-=Math.abs(i-2)*3;if(out[K[i-1]]&&out[K[i-1]].t==="P"&&out[K[i-1]].padel==="partie")s-=2;return s;};
+  const free=K.map((k,i)=>i).filter(i=>!out[K[i]]).sort((a,b)=>score(b)-score(a));
+  if(free.length&&score(free[0])>0){const i=free[0];out[K[i]]={t:"A",short:distNext(i)===2};}
+  else{const pd=K.map((k,i)=>i).filter(i=>out[K[i]]&&out[K[i]].t==="P"&&!out[K[i]].veille&&distNext(i)>=2).sort((a,b)=>distNext(b)-distNext(a));
+    if(pd.length)out[K[pd[0]]].withA=true;else out._noA=true;}
+  // Compléments après le padel : prévention puis finisher
+  const pads=K.map((k,i)=>i).filter(i=>out[K[i]]&&out[K[i]].t==="P"&&!out[K[i]].veille&&!out[K[i]].withA).sort((a,b)=>distNext(b)-distNext(a)||a-b);
+  if(pads[0]!=null)out[K[pads[0]]].comp="PREV";
+  if(pads[1]!=null&&distNext(pads[1])>=2)out[K[pads[1]]].comp="FIN";
+  if(cfg.focus==="endurance")pads.slice(2).forEach(i=>{if(distNext(i)>=2)out[K[i]].comp="FIN";});
+  // Récupération et cardio sur les jours restants
+  const rest=K.map((k,i)=>i).filter(i=>!out[K[i]]);
+  const hasC=Object.values(out).some(x=>x&&x.t==="C");
+  const needPrev=!pads.length;
+  if(!hasC&&rest.length){const i=rest.includes(0)?0:rest[0];out[K[i]]={t:"C",prev:needPrev};rest.splice(rest.indexOf(i),1);}
+  else if(needPrev){const c=K.find(k=>out[k]&&out[k].t==="C");if(c)out[c].prev=true;}
+  const cardioSlots=(tIdx.length?0:1)+(cfg.focus==="endurance"?1:0);
+  for(let n=0;n<cardioSlots&&rest.length;n++){const i=rest.find(j=>!(out[K[j-1]]&&out[K[j-1]].t==="A"))??rest[0];out[K[i]]={t:"Z"};rest.splice(rest.indexOf(i),1);}
+  rest.forEach(i=>{out[K[i]]={t:"R"};});
+  return out;
+}
+function focusA(A,w){const cfg=cycleCfg(w);let items=A.items.map(x=>x.slice()),title=A.title,dur=A.dur;
+  if(cfg.focus==="force")items=items.map(it=>BIG_LIFTS.has(it[0])&&it[1]?[it[0],it[1]+1,it[2],(it[3]?it[3]+" · ":"")+"Série en plus (priorité force du cycle)"]:it);
+  if(cfg.focus==="explosivite"&&!items.some(it=>it[0]==="cmj"))items.splice(1,0,["cmj",3,"4","Priorité explosivité du cycle : qualité maximale"]);
+  if(cfg.volume==="allege"){items=items.slice(0,8);title+=" · allégée";dur=Math.round(dur*0.8);}
+  return {...A,items,title,dur};}
 function dayPlan(w,d){
-  const b=blockOf(w).id,wc=wcOf(w),T=tDay(w),focus=sideTxt(PADEL_FOCUS[b]);
-  if(d==="lun") return {kind:"C",title:S.C.title,dur:50,place:S.C.place,items:S.C.items,cue:"Après le tournoi du week-end : on relance la circulation sans fatiguer. Si tu es très entamé, fais seulement la mobilité."};
-  if(d==="mar"){const F=S.PREV[b];return {kind:"P",title:"Padel + "+F.title.toLowerCase(),dur:90+F.dur,place:"Club",tech:true,items:[["Entraînement padel",null,"60–90 min","Axe du bloc : "+focus],...F.items],cue:"Juste après ton entraînement padel, encore chaud : 20 min de prévention épaule, mollets, adducteurs et gainage."};}
-  if(d==="jeu"){
-    if(T==="ven") return {kind:"P",title:"Padel léger (veille de tournoi)",dur:60,place:"Club",tech:true,items:[["Entraînement padel",null,"45–60 min","Technique et sensations : pas de match intense, pas de finisher"],ACTIVATION[0]],cue:"Tournoi demain : l'entraînement sert à caler tes sensations. Écourte-le si tu te sens lourd."};
-    const F=S.FIN[b];
-    return {kind:"P",title:"Padel + "+F.title.toLowerCase(),dur:90+F.dur,place:"Club",tech:true,items:[["Entraînement padel",null,"60–90 min","Axe du bloc : "+focus],...F.items],cue:T==="dim"?"Tournoi dimanche (J-3) : finisher complet.":T==="none"?"Pas de tournoi cette semaine : finisher complet, tu peux même ajouter une série.":"Juste après ton entraînement padel : 15 min courts et intenses. C'est J-2 avant le tournoi, donc on s'arrête là."};
+  const L=weekLayout(w),x=L[d]||{t:"R"},b=blockOf(w).id,wc=wcOf(w),focus=sideTxt(PADEL_FOCUS[b]),hasT=tournamentDays(w).length>0;
+  if(x.t==="M")return TOURNOI(x.suite);
+  if(x.t==="V")return {kind:"V",title:"Activation ou repos",dur:20,place:"Maison / club",items:ACTIVATION,cue:"Veille de tournoi : prépare ton sac (checklist) et garde de la fraîcheur."};
+  if(x.t==="C"){const prevItems=x.prev?S.PREV[b].items:[];
+    return {kind:"C",title:S.C.title+(x.prev?" + prévention":""),dur:50+(x.prev?20:0),place:S.C.place,items:[...S.C.items,...prevItems],
+      cue:x.after?"Lendemain de tournoi : on relance la circulation sans fatiguer. Si tu es très entamé, fais seulement la mobilité.":"Séance facile : cardio en aisance respiratoire, puis mobilité."+(x.prev?" Pas de padel cette semaine : la prévention épaule, mollets et gainage se fait ici.":"")};}
+  if(x.t==="Z")return {kind:"C",title:"Cardio zone 2 (perte de poids)",dur:50,place:"Maison / extérieur",items:[["zone2",null,"35–45 min"],["mobility",null,"12 min"]],cue:hasT?"Séance d'endurance en plus (priorité du cycle).":"Pas de tournoi cette semaine : séance bonus pour l'endurance et la perte de poids."};
+  if(x.t==="R")return {kind:"R",title:"Repos",dur:15,place:"Maison",items:[["mobility",null,"12 min","La routine guidée"]],cue:"Repos complet, seulement la mobilité."};
+  if(x.t==="A"){
+    if(isTestWeek(w)){const first=w===1;return {kind:"T",title:first?"Tests de départ":"Tests de fin de bloc",dur:60,place:"Salle ou terrain",items:[["warmup_dyn",null,"12 min","Protocole Guide"],...TESTS.filter(t=>!["fc","taille"].includes(t.k)).map(t=>[t.ex||t.name,null,t.u,t.name+" : "+t.how,t.k]),...(first?[["squat_goblet",2,"10","Découverte, charge légère"],["row_db",2,"10/bras","Découverte, charge légère"],["pallof",2,"10/côté"]]:[])],cue:(first?"Fais les tests dans cet ordre, reposé, puis 3 exercices légers pour découvrir la séance de force.":"Semaine d'allègement : les tests remplacent la séance de force. Compare avec tes résultats précédents.")+" FC de repos et tour de taille se mesurent le matin."};}
+    const A=focusA(sessionA(w),w);
+    if(x.short)return {kind:"A",short:true,title:A.title+" · version courte",dur:Math.round(A.dur*0.7),place:A.place,items:A.items.slice(0,8),cue:"Tournoi dans 2 jours : une série de moins partout, les 2 derniers exercices sautent, RPE 7 maximum et aucune série jusqu'à l'échec."};
+    return {kind:"A",...A,cue:WEEK_CUE[((wc-1)%4)+1]+(cycleOf(w)>=2&&wc<=2?" Nouveau cycle : repars de tes charges de fin de cycle précédent −5 %, puis progresse.":"")+(!hasT?" Pas de tournoi cette semaine : tu peux pousser un peu plus.":" Les sauts et lancers se font en premier, quand tu es frais.")};
   }
-  if(d==="mer"){
-    if(isTestWeek(w)){const first=w===1;return {kind:"T",title:first?"Tests de départ":"Tests de fin de bloc",dur:60,place:"Salle ou terrain",items:[["warmup_dyn",null,"12 min","Protocole Guide"],...TESTS.filter(t=>!["fc","taille"].includes(t.k)).map(t=>[t.ex||t.name,null,t.u,t.name+" : "+t.how,t.k]),...(first?[["squat_goblet",2,"10","Découverte, charge légère"],["row_db",2,"10/bras","Découverte, charge légère"],["pallof",2,"10/côté"]]:[])],cue:(first?"Fais les tests dans cet ordre, reposé, puis 3 exercices légers pour découvrir la séance de force.":"Semaine d'allègement : les tests remplacent la séance de force.")+" FC de repos et tour de taille se mesurent le matin."+(T==="ven"?" Tournoi vendredi : si tu préfères, fais les tests lundi à la place.":"")};}
-    const A=sessionA(w);
-    if(T==="ven")return {kind:"A",short:true,title:A.title+" · version courte",dur:50,place:A.place,items:A.items.slice(0,8),cue:"Tournoi vendredi, on est à J-2 : une série de moins partout, les 2 derniers exercices sautent, RPE 7 maximum et aucune série jusqu'à l'échec."};
-    return {kind:"A",...A,cue:WEEK_CUE[((wc-1)%4)+1]+(cycleOf(w)>=2&&wc<=2?" Nouveau cycle : repars de tes charges de fin de cycle précédent −5 %, puis progresse.":"")+(T==="none"?" Pas de tournoi cette semaine : tu peux pousser un peu plus.":" Les sauts et lancers se font en premier, quand tu es frais.")};
-  }
-  if(d==="ven"){
-    if(T==="ven") return TOURNOI(false);
-    if(T==="sam") return {kind:"V",title:"Activation ou repos",dur:20,place:"Maison / club",items:ACTIVATION,cue:"Veille de tournoi : prépare ton sac (checklist) et garde de la fraîcheur."};
-    if(T==="dim") return {kind:"C",title:"Récup légère",dur:35,place:"Maison / extérieur",items:[["zone2",null,"20–25 min","Très facile, pour la circulation"],["mobility",null,"12 min","La routine guidée"]],cue:"Tournoi dimanche : un peu de cardio très facile aujourd'hui, activation demain."};
-    return {kind:"C",title:"Cardio zone 2 (perte de poids)",dur:50,place:"Maison / extérieur",items:[["zone2",null,"35–45 min"],["mobility",null,"12 min"]],cue:"Pas de tournoi : séance bonus pour la perte de poids."};
-  }
-  if(d==="sam"){
-    if(T==="ven"||T==="sam") return TOURNOI(T==="ven");
-    if(T==="dim") return {kind:"V",title:"Activation ou repos",dur:20,place:"Maison / club",items:ACTIVATION,cue:"Veille de tournoi : prépare ton sac (checklist) et garde de la fraîcheur."};
-    return {kind:"P",title:"Match d'entraînement ou repos",dur:90,place:"Club",tech:true,items:[["Match d'entraînement",null,"60–90 min","Ou repos si la semaine a été chargée"],["mobility",null,"12 min"]],cue:"Semaine sans tournoi : garde le rythme du jeu avec un match."};
-  }
-  if(T==="none") return {kind:"R",title:"Repos",dur:15,place:"Maison",items:[["mobility",null,"12 min","La routine guidée"]],cue:"Repos complet, seulement la mobilité."};
-  return TOURNOI(T!=="dim");
+  // Padel
+  const lab=PADEL_LABEL[x.padel]||"Padel",isCours=x.padel==="cours";
+  const padelItem=[isCours?"Cours de padel":"Partie de padel",null,isCours?"60–90 min":"60–120 min",isCours?"Axe du bloc : "+focus:"Joue avec intensité, note ensuite ce qui a marché"];
+  if(x.veille)return {kind:"P",padel:x.padel,title:lab+" léger (veille de tournoi)",dur:60,place:"Club",tech:true,items:[[padelItem[0],null,"45–60 min","Technique et sensations : pas de match intense, pas de finisher"],ACTIVATION[0]],cue:"Tournoi demain : le padel sert à caler tes sensations. Écourte si tu te sens lourd."};
+  if(x.withA){const A=focusA(sessionA(w),w);return {kind:"A",padel:x.padel,short:true,title:lab+" + force (version courte)",dur:60+Math.round(A.dur*0.6),place:"Salle + club",tech:true,items:[padelItem,...A.items.filter(it=>it[0]!=="warmup").slice(0,6)],cue:"Pas d'autre jour libre cette semaine : fais la force en version courte, idéalement le matin, et le padel le soir (ou l'inverse avec 3 h d'écart)."};}
+  const F=x.comp==="PREV"?S.PREV[b]:x.comp==="FIN"?S.FIN[b]:null;
+  return {kind:"P",padel:x.padel,title:lab+(F?" + "+F.title.toLowerCase():""),dur:90+(F?F.dur:0),place:"Club",tech:true,items:[padelItem,...(F?F.items:[])],
+    cue:F?(x.comp==="PREV"?"Juste après le padel, encore chaud : 20 min de prévention épaule, mollets, adducteurs et gainage.":"Juste après le padel : 15 min courts et intenses."):"Profite du padel, pas de complément physique aujourd'hui."};
 }
 const KIND_LABEL={A:"Force",C:"Récup",P:"Padel",T:"Tests",V:"Activation",R:"Repos",M:"Tournoi"};
 const PLANNED_KINDS="ACPTV";   // jours qui comptent comme séance prévue

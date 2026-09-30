@@ -41,8 +41,8 @@ function obBody(){const s=S_();
     <div class="lbl">Côté de jeu</div><div class="ob-seg" role="radiogroup" aria-label="Côté de jeu">${[["gauche","Gauche"],["droite","Droite"]].map(([v,l])=>`<label><input type="radio" name="side" value="${v}" ${s.side===v?"checked":""}><span>${l}</span></label>`).join("")}</div>
     <div class="ob-fields"><label>Catégorie habituelle<select name="level">${LEVELS.map(l=>`<option ${s.level===l?"selected":""}>${l}</option>`).join("")}</select></label>
      <label>Jour de tournoi habituel<select name="tDefault">${TDAY_OPTS.map(([v,l])=>`<option value="${v}" ${s.tDefault===v?"selected":""}>${l}</option>`).join("")}</select></label>
-     <label>Jour de ton cours de padel<select name="lessonDay">${LESSON_DAYS.map(([v,l])=>`<option value="${v}" ${s.lessonDay===v?"selected":""}>${l}</option>`).join("")}</select></label></div>
-    <p class="small muted">Le programme prévoit deux séances de padel par semaine et des tournois le week-end. Tu pourras ajouter tes tournois un par un : la semaine s'adapte automatiquement.</p>
+     <label>Jour habituel de ton cours<select name="lessonDay">${LESSON_DAYS.map(([v,l])=>`<option value="${v}" ${s.lessonDay===v?"selected":""}>${l}</option>`).join("")}</select></label></div>
+    <p class="small muted">Ce sont tes habitudes. Chaque début de semaine, tu pourras indiquer tes vrais jours de cours, de partie et de tournoi : les séances physiques se replacent automatiquement.</p>
     ${obNav()}</form>`;
   if(OB.step===3){const ms=obMondays(),cur=s.start||nextMonday();return `<div class="eyebrow">Étape 3 · Démarrage</div><h2>Quand commences-tu ?</h2>
    <p class="small muted">Le programme démarre toujours un lundi. Avant cette date, tu peux déjà faire la mobilité et découvrir les exercices.</p>

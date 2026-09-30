@@ -271,3 +271,60 @@ table.tmpl td:first-child{width:90px}
 .ob-acc h3{margin:0}
 .bad-txt{color:var(--bad)}
 .acc-nudge{border-color:var(--court)}
+/* v3.4 — ta semaine */
+.wplan{display:flex;flex-direction:column;gap:10px}
+.wplan>p{margin:0}
+.wp-grid{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.wp-row{display:grid;grid-template-columns:52px 1fr;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid var(--line)}
+.wp-row:first-child{border-top:0}
+.wp-row.today{background:var(--court-soft)}
+.wp-row.past{opacity:.6}
+.wp-day{display:flex;flex-direction:column;line-height:1.1}
+.wp-day b{font-size:14px}
+.wp-day span{font-family:var(--mono);font-size:10.5px;color:var(--ink-2)}
+.wp-opts{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.wp-o{appearance:none;border:1.5px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:8px;padding:7px 2px;font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;min-width:0}
+.wp-o[aria-pressed="true"]{color:#fff;border-color:transparent;background:var(--ink-2)}
+.wp-o.wp-cours[aria-pressed="true"]{background:var(--court)}
+.wp-o.wp-partie[aria-pressed="true"]{background:var(--b2)}
+.wp-o.wp-tournoi[aria-pressed="true"]{background:var(--warn)}
+:root[data-theme="dark"] .wp-o[aria-pressed="true"]{color:#0D151D}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .wp-o[aria-pressed="true"]{color:#0D151D}}
+.wp-res{grid-column:2;font-size:12px;color:var(--ink-2);margin-top:-2px}
+.wp-card{border-color:var(--court);border-width:2px}
+.wp-card>.linkbtn{align-self:flex-start}
+.tag.okc{color:var(--ok);border-color:var(--ok)}
+.wp-det{border-top:1px solid var(--line);padding-top:10px}
+.wp-det summary{display:flex;flex-direction:column;gap:2px;cursor:pointer;list-style:none}
+.wp-det summary::-webkit-details-marker{display:none}
+.wp-det summary::after{content:"Modifier ▾";font-size:12.5px;color:var(--court);font-weight:500}
+.wp-det[open] summary::after{content:"Fermer ▴"}
+.wp-det[open]>.wplan{margin-top:10px}
+/* v3.4 — fin de cycle */
+.cy-card{border-color:var(--court);border-width:2px}
+.cy-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.cy-opts button{appearance:none;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.cy-opts button b{font-size:14px;font-weight:600}
+.cy-opts button span{font-size:12.5px;color:var(--ink-2)}
+.cy-opts button[aria-pressed="true"]{border-color:var(--court);background:var(--court-soft)}
+@media (max-width:360px){.cy-opts{grid-template-columns:1fr}}
+.blk-bars{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.blk{display:grid;grid-template-columns:130px 1fr 52px;align-items:center;gap:10px;font-size:13.5px}
+.blk .bar{height:10px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.blk .bar i{display:block;height:100%;border-radius:6px}
+.blk b{text-align:right}
+.vtag{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.vtag.ok{background:var(--ok-soft);color:var(--ok)}
+.vtag.bad{background:color-mix(in srgb,var(--bad) 15%,transparent);color:var(--bad)}
+.vtag.mid{background:var(--surface-2);color:var(--ink-2)}
+.cy-launch .alert ul{margin:6px 0 0}
+.cy-tests{list-style:none;margin:0;padding:0}
+.cy-tests li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.cy-tests li:first-child{border-top:0}
+.cy-tests li>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.wp-o.wp-none[aria-pressed="true"]{background:var(--surface-2);color:var(--ink);border-color:var(--line)}
+:root[data-theme="dark"] .wp-o.wp-none[aria-pressed="true"]{color:var(--ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .wp-o.wp-none[aria-pressed="true"]{color:var(--ink)}}
+.wplan{max-width:720px}
+@media (max-width:380px){.wp-row{grid-template-columns:40px 1fr;gap:6px;padding:6px 8px}.wp-o{font-size:11.5px;padding:7px 0;letter-spacing:-.01em}.wp-opts{gap:3px}}
+@media (max-width:380px){.wp-day span{white-space:nowrap;font-size:9.5px;letter-spacing:-.02em}}

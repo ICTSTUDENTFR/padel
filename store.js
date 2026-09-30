@@ -23,6 +23,9 @@ function normalize(){
   if(!data.bag.main)data.bag.main={items:BAG_DEFAULT.slice(),checked:{}};
   if(!Object.keys(data.goals).length){data.goals.poids={id:"poids",type:"poids",label:"Poids de forme",target:null,unit:"kg"};data.goals.rang={id:"rang",type:"classement",label:"Classement FFT",target:null,unit:"e"};data.goals.squat={id:"squat",type:"exo:back_squat",label:"Squat (force max estimée)",target:null,unit:"kg"};}
   if(!data.meta.main)data.meta.main={updatedAt:0,lastExport:null,created:Date.now()};
+  // Cycles déjà entamés dans une version précédente (séances enregistrées au-delà de la semaine 12)
+  {const mw=Math.max(0,...Object.keys(data.logs).map(k=>+(/^s(\d+)-/.exec(k)||[])[1]||0));const st=data.settings.main;
+   if(mw>12){st.cycles=st.cycles||{};for(let c=2;c<=Math.ceil(mw/12);c++)if(!st.cycles[c])st.cycles[c]={start:addDays(st.start,(c-1)*84),focus:"equilibre",volume:"normal",auto:true};}}
   lsSave(true);
 }
 function lsSave(noTouch){
@@ -37,11 +40,22 @@ function remove(coll,id,opts={}){delete data[coll][id];lsSave();if(!opts.silent&
 /* ---------- Dates du programme ---------- */
 const startDate=()=>S_().start||nextMonday();
 const daysToStart=()=>daysBetween(todayIso(),startDate());
-function weekOfDate(ds){const d=daysBetween(startDate(),ds);return d<0?0:Math.floor(d/7)+1;}
-function curWeek(){return Math.max(1,weekOfDate(todayIso()));}
-function dateOf(w,di){return addDays(startDate(),(w-1)*7+di);}
+function cyclesCfg(){return S_().cycles||{};}
+function launchedCycles(){let n=1;const cs=cyclesCfg();while(cs[n+1]&&cs[n+1].start)n++;return n;}
+function cycleStart(c){if(c<=1)return startDate();const cs=cyclesCfg();if(cs[c]&&cs[c].start)return cs[c].start;return addDays(cycleStart(c-1),84);}
+function cycleEnd(c){return addDays(cycleStart(c),83);}
+/* Où en est-on à une date donnée : avant le début, dans un cycle, ou entre deux cycles */
+function cyclePhase(ds){const st=startDate();if(daysBetween(st,ds)<0)return {state:"before"};
+  let c=launchedCycles();while(c>1&&daysBetween(cycleStart(c),ds)<0)c--;
+  const d=daysBetween(cycleStart(c),ds),wi=Math.floor(d/7);
+  if(wi>=12){const nx=cyclesCfg()[c+1];return {state:"gap",c,next:nx&&nx.start?nx.start:null};}
+  return {state:"in",c,w:(c-1)*12+wi+1};}
+function weekOfDate(ds){const ph=cyclePhase(ds);return ph.state==="in"?ph.w:0;}
+function curWeek(){const ph=cyclePhase(todayIso());return ph.state==="in"?ph.w:ph.state==="gap"?ph.c*12:1;}
+function cycleGap(){const ph=cyclePhase(todayIso());return ph.state==="gap"?ph:null;}
+function dateOf(w,di){return addDays(cycleStart(cycleOf(w)),(wcOf(w)-1)*7+di);}
 function dayKeyOf(ds){const d=daysBetween(startDate(),ds);return DAY_KEYS[((d%7)+7)%7];}
-function todayRef(){const t=todayIso();const w=weekOfDate(t);return w>=1?{w,d:dayKeyOf(t),date:t}:null;}
+function todayRef(){const t=todayIso(),ph=cyclePhase(t);return ph.state==="in"?{w:ph.w,d:dayKeyOf(t),date:t}:null;}
 
 /* ---------- Statistiques ---------- */
 function sortedWeights(){return Object.values(data.weights).filter(x=>x&&x.date&&x.kg).sort((a,b)=>a.date.localeCompare(b.date));}
