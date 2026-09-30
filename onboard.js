@@ -2,7 +2,7 @@
 "use strict";
 const OB={step:0,weight:null,pastAuth:false};
 const AUTH={mode:"in",ctx:null};
-const OB_STEPS=4;
+const OB_STEPS=5;
 function friendlyAuthErr(m){m=String(m||"");
   if(/invalid login|invalid_grant|credentials/i.test(m))return "e-mail ou mot de passe incorrect";
   if(/already registered|already exists|already been registered/i.test(m))return "un compte existe déjà avec cet e-mail : connecte-toi";
@@ -25,7 +25,8 @@ function obBody(){const s=S_();
    <p class="small muted">Deux minutes pour régler ton profil, et c'est parti.</p>
    <form class="stack" data-onboard="0">
     <label class="check"><input type="checkbox" name="ok" required> <span>J'ai compris que ce programme ne remplace pas un avis médical, et je consulterai un professionnel en cas de douleur ou de problème de santé.</span></label>
-    <button class="btn block" type="submit">Commencer</button></form>
+    <button class="btn block" type="submit">Commencer</button>
+    <p class="muted small" style="margin:0;text-align:center">En continuant, tu acceptes les conditions d'utilisation et la politique de confidentialité.</p>${legalLinks()}</form>
    <div class="ob-alt"><label class="linkbtn filebtn">Restaurer une sauvegarde<input type="file" id="file-import" accept="application/json,.json" hidden></label>
     ${cloudOn()?`<button class="linkbtn" type="button" data-ob="tologin">J'ai déjà un compte</button>`:""}</div>`;
   if(OB.step===1)return `<div class="eyebrow">Étape 1 · Profil</div><h2>Parle-moi de toi</h2>
@@ -45,9 +46,19 @@ function obBody(){const s=S_();
      <label>Jour habituel de ton cours<select name="lessonDay">${LESSON_DAYS.map(([v,l])=>`<option value="${v}" ${s.lessonDay===v?"selected":""}>${l}</option>`).join("")}</select></label></div>
     <p class="small muted">Ce sont tes habitudes. Chaque début de semaine, tu pourras indiquer tes vrais jours de cours, de partie et de tournoi : les séances physiques se replacent automatiquement.</p>
     ${obNav()}</form>`;
-  if(OB.step===3){const ms=obMondays(),cur=s.start||nextMonday();return `<div class="eyebrow">Étape 3 · Démarrage</div><h2>Quand commences-tu ?</h2>
+  if(OB.step===3)return `<div class="eyebrow">Étape 3 · Objectif</div><h2>Ce que tu veux</h2>
+   <form class="stack" data-onboard="3">
+    <div class="lbl">Ton objectif principal</div>
+    <div class="ob-list">${GOALS.map(([v,l,d])=>`<label><input type="radio" name="goal" value="${v}" ${(s.goal||"performance")===v?"checked":""}><span><b>${l}</b><br><small class="muted">${d}</small></span></label>`).join("")}</div>
+    <div class="lbl">Ton matériel</div>
+    <div class="ob-list">${EQUIPS.map(([v,l,d])=>`<label><input type="radio" name="equip" value="${v}" ${(s.equip||"salle")===v?"checked":""}><span><b>${l}</b><br><small class="muted">${d}</small></span></label>`).join("")}</div>
+    <div class="lbl">Des zones fragiles ou déjà blessées ? <span class="muted">(facultatif)</span></div>
+    <div class="ob-chips">${Object.entries(REHAB).map(([k,r])=>`<label><input type="checkbox" name="inj" value="${k}" ${(s.injuries||[]).includes(k)?"checked":""}><span>${esc(r.name)}</span></label>`).join("")}</div>
+    <p class="small muted">Un renforcement ciblé de 10 minutes sera ajouté à tes séances pour ces zones.</p>
+    ${obNav()}</form>`;
+  if(OB.step===4){const ms=obMondays(),cur=s.start||nextMonday();return `<div class="eyebrow">Étape 4 · Démarrage</div><h2>Quand commences-tu ?</h2>
    <p class="small muted">Le programme démarre toujours un lundi. Avant cette date, tu peux déjà faire la mobilité et découvrir les exercices.</p>
-   <form class="stack" data-onboard="3"><div class="ob-list">${ms.map(([v,l])=>`<label><input type="radio" name="start" value="${v}" ${cur===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div>
+   <form class="stack" data-onboard="4"><div class="ob-list">${ms.map(([v,l])=>`<label><input type="radio" name="start" value="${v}" ${cur===v?"checked":""}><span>${esc(l)}</span></label>`).join("")}</div>
     ${obNav()}</form>`;}
   const bmi=OB.weight&&s.height?OB.weight/((s.height/100)**2):null;
   return `<div class="eyebrow">Récapitulatif</div><h2>${s.name?"C'est prêt, "+esc(s.name)+" !":"C'est prêt !"}</h2>
@@ -55,7 +66,7 @@ function obBody(){const s=S_();
     <li><b>Padel</b><span>Joueur${s.sex==="F"?"se":""} de ${s.side} · ${esc(s.level)}</span></li><li><b>Tournois</b><span>${esc((TDAY_OPTS.find(x=>x[0]===s.tDefault)||[,"Samedi"])[1])}</span></li>
     <li><b>Zone 2 cardio</b><span>${zone2Range()} bpm</span></li></ul>
    ${bmi&&bmi>=25?`<p class="small muted">Objectif poids : tu peux choisir une perte douce dans Réglages, les apports seront calculés pour toi.</p>`:""}
-   ${cloudOn()?`<form class="stack" data-onboard="4" novalidate>
+   ${cloudOn()?`<form class="stack" data-onboard="5" novalidate>
     <section class="ob-acc stack"><div><div class="eyebrow">Gratuit · recommandé</div><h3>Crée ton compte</h3></div>
      <p class="small muted">Tes séances et tes progrès sont sauvegardés en ligne et tu retrouves tout sur ton ordinateur ou un nouveau téléphone.</p>
      <label>E-mail<input type="email" name="email" autocomplete="username" autocapitalize="off" autocorrect="off"></label>
@@ -64,7 +75,7 @@ function obBody(){const s=S_();
      <p class="small" id="ob-acc-status" role="status"></p>
      <button class="btn block" type="submit" name="go" value="acc">Créer mon compte et commencer</button></section>
     <div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn ghost" type="submit" name="go" value="skip">Continuer sans compte</button></div></form>`
-   :`<form class="stack" data-onboard="4"><div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">C'est parti</button></div></form>`}`;}
+   :`<form class="stack" data-onboard="5"><div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">C'est parti</button></div></form>`}`;}
 function obNav(){return `<div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">Continuer</button></div>`;}
 function renderOnboard(){let el=$("#onboard");
   if(READONLY||S_().onboarded){if(el){el.remove();document.body.classList.remove("ob-open");}return;}
@@ -80,14 +91,15 @@ function onboardClick(t){const a=t.dataset.ob;
 async function onboardSubmit(f,sb){const s=S_(),n=+f.dataset.onboard,v=k=>f.elements[k]?f.elements[k].value:"";
   if(n===1){s.name=v("name").trim().slice(0,30);s.sex=v("sex")||"H";s.age=num(v("age"));s.height=num(v("height"));OB.weight=num(v("kg"));}
   if(n===2){s.side=v("side")||"gauche";s.level=v("level");s.tDefault=v("tDefault");s.lessonDay=v("lessonDay");}
-  if(n===3){s.start=v("start")||nextMonday();}
-  if(n===4&&sb&&sb.value==="acc"){const st=$("#ob-acc-status"),em=v("email").trim(),pw=v("pw");
+  if(n===3){s.goal=v("goal")||"performance";s.equip=v("equip")||"salle";s.injuries=[...f.querySelectorAll("input[name=inj]:checked")].map(i=>i.value);if(s.goal==="poids"&&!+s.deficit)s.deficit=400;}
+  if(n===4){s.start=v("start")||nextMonday();}
+  if(n===5&&sb&&sb.value==="acc"){const st=$("#ob-acc-status"),em=v("email").trim(),pw=v("pw");
     const err=accCheck(em,pw,v("pw2"),"up");if(err){st.textContent=err;st.className="small bad-txt";return;}
     st.className="small muted";st.textContent="Création du compte…";sb.disabled=true;
     try{const r=await Sync.signUp(em,pw);obFinish(r==="confirm"?"Compte créé : clique sur le lien reçu par e-mail pour l'activer":"Compte créé, tes données sont sauvegardées");}
     catch(e){sb.disabled=false;st.className="small bad-txt";st.textContent=friendlyAuthErr(e.message);}
     return;}
-  if(n===4){obFinish();return;}
+  if(n===5){obFinish();return;}
   lsSave();OB.step=n+1;renderOnboard();}
 
 /* Liens reçus par e-mail (confirmation de compte, mot de passe oublié) */
@@ -113,6 +125,7 @@ document.addEventListener("submit",async e=>{const f=e.target;if(!f.dataset||!f.
 
 function obFinish(msg){const s=S_();
   if(OB.weight){const id=uid();save("weights",id,{id,date:todayIso(),kg:OB.weight},{silent:true});OB.weight=null;}
+  applyProfileChoices(s);
   s.onboarded=true;lsSave();state.week=null;renderOnboard();renderApp({force:true});window.scrollTo(0,0);
   toast(msg||(s.name?"Bienvenue "+s.name+" !":"Bienvenue !"));}
 function accCheck(email,pw,pw2,mode){
@@ -164,7 +177,7 @@ function authHtml(ctx){const m=AUTH.mode,c=Sync.cfg(),start=ctx==="start";
    ${m==="in"?(start?`<button class="btn ghost block" type="button" data-ob="signup">Créer un compte</button>`:`<button class="btn ghost block" type="button" data-authmode="up">Créer un compte</button>`)
      :`<button class="btn ghost block" type="button" data-authmode="in">Se connecter</button>`}
    ${start?`<div class="ob-alt"><button class="linkbtn" type="button" data-ob="noacc">Continuer sans compte</button><label class="linkbtn filebtn">Restaurer une sauvegarde<input type="file" id="file-import" accept="application/json,.json" hidden></label></div>
-    <p class="muted small auth-note">Sans compte, tes données restent uniquement sur cet appareil.</p>`:""}
+    <p class="muted small auth-note">Sans compte, tes données restent uniquement sur cet appareil.</p>${legalLinks()}`:""}
   </div>`;}
 function openAuth(mode){if(!cloudOn()){toast("Les comptes ne sont pas disponibles pour le moment",true);return;}
   AUTH.mode=mode||"in";AUTH.ctx="modal";Sync.status="";let el=$("#authpage");
@@ -181,3 +194,10 @@ document.addEventListener("click",e=>{const t=e.target.closest("button");if(!t)r
   if(D.pwshow){const f=t.closest("form");const show=t.textContent==="Afficher";f.querySelectorAll('input[name=pw],input[name=pw2]').forEach(i=>i.type=show?"text":"password");t.textContent=show?"Masquer":"Afficher";t.setAttribute("aria-label",show?"Masquer le mot de passe":"Afficher le mot de passe");return;}
 });
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&$("#authpage"))closeAuth();});
+
+/* Objectif, matériel, zones fragiles */
+const GOALS=[["performance","Performance en tournoi","Explosivité, vitesse et endurance de match"],["poids","Perdre du poids","Cardio en plus et apports calculés en léger déficit"],["reprise","Reprendre après une coupure","2 semaines progressives avant le programme complet"],["forme","Être en forme","Programme complet, sans objectif de poids"]];
+const EQUIPS=[["salle","Salle de sport","Barres, haltères, machines"],["maison","Maison avec un peu de matériel","Haltères ou élastiques"],["pdc","Poids du corps","Sans matériel (sac à dos lesté au besoin)"]];
+function applyProfileChoices(s){
+  (s.injuries||[]).forEach(z=>{if(REHAB[z]&&!(data.rehab[z]&&data.rehab[z].active))data.rehab[z]={active:true,since:todayIso(),auto:true};});
+  if(s.goal==="reprise"&&!(data.resume.main&&data.resume.main.until>todayIso())){const from=s.start||nextMonday();data.resume.main={from,days:21,until:addDays(from,14)};}}

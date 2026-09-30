@@ -1,6 +1,6 @@
 /* Programme Padel — navigation, évènements, démarrage */
 "use strict";
-const APP_VERSION="3.5.1";
+const APP_VERSION="3.6.0";
 const TABS=[["today","Aujourd'hui",'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
  ["week","Semaine",'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
  ["lib","Exercices",'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'],
@@ -30,6 +30,7 @@ function renderApp(opts={}){
   openD.forEach(k=>{const d=$(`#main details[data-k="${k}"]`);if(d)d.open=true;});
   $$("#tabbar button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===state.tab?"page":"false"));
   paintSyncStatus();
+  if(typeof checkAdmin==="function")checkAdmin();
   if(typeof renderOnboard==="function"&&$("#onboard")&&S_().onboarded)renderOnboard();
 }
 function go(tab,sub){state.tab=tab;state.sub=sub??null;state.moveFor=null;saveUi();renderApp({force:true});window.scrollTo(0,0);}
@@ -75,7 +76,7 @@ document.addEventListener("click",e=>{
   if(D.openday){const [w,d]=D.openday.split("|");state.week=+w;state.day=d;go("week");return;}
   if(D.tday){const [w,k]=D.tday.split("|");save("weeks","w"+w,{week:+w,tournoi:k});toast("Semaine adaptée à ton tournoi");return;}
   if(D.mob){const dt=D.mob;if(data.mobilite[dt])remove("mobilite",dt);else{save("mobilite",dt,{date:dt,done:true});toast("Mobilité enregistrée");}return;}
-  if(D.adj){const [id,k]=D.adj.split("|"),a={...(data.adj[id]||{})};a[k]=!a[k];save("adj",id,a);toast(a[k]?(k==="short"?"Version courte activée":"Version maison activée"):"Séance normale");return;}
+  if(D.adj){const [id,k]=D.adj.split("|"),a={...(data.adj[id]||{})};if(k==="home"){const w=+id.slice(1,id.indexOf("-")),d=id.slice(id.indexOf("-")+1);a.home=!planFor(w,d).home;}else a[k]=!a[k];save("adj",id,a);toast(a[k]?(k==="short"?"Version courte activée":"Version maison activée"):"Séance normale");return;}
   if(D.move){state.moveFor=state.moveFor===D.move?null:D.move;renderApp({force:true});return;}
   if(D.swap){const [w,a,b]=D.swap.split("|");doSwap(+w,a,b);return;}
   if(D.swapreset){delete data.swaps["w"+D.swapreset];state.moveFor=null;lsSave();renderApp({force:true});toast("Déplacements annulés");return;}
@@ -179,7 +180,7 @@ document.addEventListener("submit",async e=>{
   if(F.vnote){const vv=data.videos[F.vnote];const tt=v("t").trim(),tx=v("txt").trim();if(!tx)return;vv.notes=(vv.notes||[]).concat({t:tt,txt:tx}).sort((a,b)=>String(a.t).localeCompare(String(b.t),undefined,{numeric:true}));save("videos",vv.id,vv);return;}
   if(F.sweat){const b=num(v("before")),a=num(v("after")),dr=num(v("drunk"))||0,du=num(v("dur"))||90;if(!b||!a)return;const loss=Math.max(0,b-a+dr),id=uid();save("sweat",id,{id,date:todayIso(),before:b,after:a,drunk:dr,dur:du,loss,rate:loss/(du/60),toDrink:Math.max(0,(b-a)*1.5)});return;}
   if(F.resume){const days=num(v("days")),from=v("from")||todayIso();if(!days)return;save("resume","main",{from,days,until:addDays(from,days>=21?14:7)});toast("Reprise progressive programmée");return;}
-  if(F.settings){const s=S_();["start","side","theme","sex","tDefault","lessonDay","level"].forEach(k=>s[k]=v(k));s.name=v("name").trim().slice(0,30);s.voice=v("voice")==="1";["height","age","activity","deficit"].forEach(k=>s[k]=num(v(k)));
+  if(F.settings){const s=S_();["start","side","theme","sex","tDefault","lessonDay","level","goal","equip"].forEach(k=>{if(f.elements[k])s[k]=v(k);});s.name=v("name").trim().slice(0,30);s.voice=v("voice")==="1";["height","age","activity","deficit"].forEach(k=>s[k]=num(v(k)));
     if(s.start&&parse(s.start).getDay()!==1)toast("Conseil : choisis un lundi comme date de début",true);else toast("Réglages enregistrés");
     lsSave();applyTheme();state.week=null;renderApp({force:true});return;}
   if(F.onboard){onboardSubmit(f,e.submitter);return;}

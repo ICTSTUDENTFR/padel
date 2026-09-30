@@ -112,6 +112,7 @@ function coachSuggest(ref){
     if(ue!=null&&ue>=15)add("Volée",1,"beaucoup de fautes directes : sécuriser les volées");
     if(df!=null&&df>=2)add("Service / retour",4,`${fmt(df)} doubles fautes par match en moyenne`);
     if(sm!=null&&sm<2)add("Smash par 3",2,`seulement ${fmt(sm)} smash gagnant par match`);}
+  if(typeof liveStatsHints==="function")liveStatsHints(add);
   // 5. Résultats et fin de match
   const tr=Object.values(data.tournois).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,4);
   const cuit=tr.filter(t=>/Cuit|Crampes/.test(t.fin||"")).length;

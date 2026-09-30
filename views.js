@@ -84,7 +84,7 @@ function sessionFull(p){
    ${p.cue?`<div class="cue">${esc(sideTxt(p.cue))}</div>`:""}
    <div class="actions">
     ${p.kind!=="R"?`<button class="btn" type="button" data-run="${p.id}">${log.done?"Refaire en mode guidé":"Démarrer la séance"}</button>`:""}
-    ${canAdj?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!adj.short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!adj.home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!adj.express}">Express 25 min</button>`:""}
+    ${canAdj?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!adj.short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!p.home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!adj.express}">Express 25 min</button>`:""}
     <button class="chip-btn" type="button" data-move="${p.w}|${p.d}">Déplacer</button>
    </div>
    ${state.moveFor===`${p.w}|${p.d}`?moveBox(p):""}
@@ -172,6 +172,7 @@ function renderToday(){
   out.push(`<div class="hello"><div class="eyebrow">${S_().name?"Salut "+esc(S_().name)+" · ":""}${esc(frLong(t))}</div><h1>${ref?`Semaine ${ref.w}`:gap?`Cycle ${gap.c} terminé`:`Début dans ${plural(dts,"jour")}`}</h1><p class="muted">${ref?`${esc(blockOf(ref.w).name)} · cycle ${cycleOf(ref.w)}${isDeload(ref.w)?" · semaine d'allègement":""}`:gap?(gap.next?`Prochain cycle le ${esc(frLong(gap.next))}.`:"Ton bilan est prêt."):`Ton programme commence le ${esc(frLong(startDate()))}.`}</p></div>`);
   out.push(cycleTodayCard());
   out.push(weekPlanCard());
+  out.push(installCard());
   out.push(todayExtras());
   out.push(lessonCardToday());
   out.push(alertsHtml());
@@ -186,7 +187,7 @@ function renderToday(){
       ${log&&log.done?`<div class="okline big">✓ Séance faite · ${log.duree||"?"} min · RPE ${log.rpe||"?"}</div>`:""}
       <div class="actions">${p.kind!=="R"?`<button class="btn big" type="button" data-run="${p.id}">${log&&log.done?"Refaire":"Démarrer la séance"}</button>`:""}
        <button class="chip-btn" type="button" data-openday="${ref.w}|${ref.d}">Détail et saisie</button>
-       ${"AP".includes(p.kind)?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!(data.adj[p.id]||{}).short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!(data.adj[p.id]||{}).home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!(data.adj[p.id]||{}).express}">Express</button>`:""}</div>
+       ${"AP".includes(p.kind)?`<button class="chip-btn" type="button" data-adj="${p.id}|short" aria-pressed="${!!(data.adj[p.id]||{}).short}">Version courte</button><button class="chip-btn" type="button" data-adj="${p.id}|home" aria-pressed="${!!p.home}">Pas de salle</button><button class="chip-btn" type="button" data-adj="${p.id}|express" aria-pressed="${!!(data.adj[p.id]||{}).express}">Express</button>`:""}</div>
     </section>`);
     if(p.kind==="M")out.push(`<section class="card"><div class="eyebrow">Jour de tournoi</div><h3>Ta journée</h3><div class="actions"><button class="chip-btn" data-goto="more:tournoi">Checklist du sac</button>${timerBtn("rt-warm",{label:"Échauffement d'avant-match",ph:ROUTINES.match_warmup.ph()},"chip-btn")}${timerBtn("rt-between",{label:"Entre deux matchs",ph:ROUTINES.between.ph()},"chip-btn")}${timerBtn("rt-br",{label:"Respiration",ph:ROUTINES.breath.ph()},"chip-btn")}<button class="chip-btn" data-goto="more:tournois">Noter mon tournoi</button></div>${timerSlot("rt-warm")}${timerSlot("rt-between")}${timerSlot("rt-br")}</section>`);
   }else if(!gap){

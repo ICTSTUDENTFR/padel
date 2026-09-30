@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Programme Padel · préparation physique</title>
+<meta name="description" content="Application gratuite de préparation physique pour le padel : programme sur 12 semaines adapté à tes tournois, séances guidées, mobilité, suivi et coach de cours.">
+<meta property="og:title" content="Programme Padel · ta préparation physique de padel">
+<meta property="og:description" content="Programme de 12 semaines adapté à tes jours de cours, de partie et de tournoi. Gratuit, sur iPhone, Android et ordinateur.">
+<meta property="og:image" content="icon-512.png">
+<meta name="theme-color" content="#1D5AA6">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+@font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url(barlow-condensed-latin-700-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:400;font-display:swap;src:url(ibm-plex-sans-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Sans";font-weight:600;font-display:swap;src:url(ibm-plex-sans-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"IBM Plex Mono";font-weight:500;font-display:swap;src:url(ibm-plex-mono-latin-500-normal.woff2) format("woff2")}
+:root{--bg:#EEF2F1;--surface:#fff;--surface-2:#E3E9E8;--ink:#13202C;--ink-2:#4A5A66;--line:#CBD5D4;--court:#1D5AA6;--court-soft:#DCE7F5;--ball:#C6D62B;--b2:#0E8577;--b3:#C2571B;
+ --display:"Barlow Condensed","Arial Narrow",sans-serif;--body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0D151D;--surface:#15212C;--surface-2:#1C2A37;--ink:#E6EDF2;--ink-2:#9AAAB6;--line:#2A3B4A;--court:#6FA3E8;--court-soft:#1B3350;--ball:#D3E24A;--b2:#3FC2B0;--b3:#F0925A}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+a{color:var(--court)}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:18px 0}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;letter-spacing:.03em;color:var(--court);text-decoration:none}
+.brand svg{width:34px;height:34px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:13px 22px;font-family:var(--display);font-weight:700;font-size:19px;text-transform:uppercase;letter-spacing:.03em;text-decoration:none;background:var(--court);color:#fff;border:0}
+@media (prefers-color-scheme:dark){.btn{color:#0D151D}}
+.btn.ghost{background:var(--surface-2);color:var(--ink)}
+.btn.small{padding:9px 14px;font-size:16px}
+.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;align-items:center;padding:36px 0 56px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2)}
+h1{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:clamp(42px,7vw,72px);line-height:.95;margin:10px 0 16px;letter-spacing:.005em}
+h1 em{font-style:normal;color:var(--court)}
+.lead{font-size:18px;color:var(--ink-2);max-width:34em;margin:0 0 24px}
+.ctas{display:flex;gap:12px;flex-wrap:wrap}
+.note{font-size:13.5px;color:var(--ink-2);margin-top:14px}
+.phone{justify-self:center;width:min(290px,80vw);aspect-ratio:9/18.5;border-radius:38px;background:var(--ink);padding:12px;box-shadow:0 30px 60px -20px rgba(19,32,44,.45)}
+.screen{width:100%;height:100%;border-radius:28px;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;gap:9px;padding:16px 13px}
+.s-h{font-family:var(--display);font-weight:700;font-size:26px;text-transform:uppercase;line-height:1}
+.s-eb{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--ink-2);text-transform:uppercase}
+.s-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.s-card.main{border:2px solid var(--court)}
+.s-t{font-family:var(--display);font-weight:700;font-size:17px;text-transform:uppercase}
+.s-row{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-top:1px solid var(--line)}
+.s-row b{font-family:var(--mono);font-size:10px;color:var(--court)}
+.s-btn{margin-top:7px;background:var(--court);color:#fff;border-radius:8px;text-align:center;font-family:var(--display);font-weight:700;font-size:14px;padding:7px;text-transform:uppercase}
+@media (prefers-color-scheme:dark){.s-btn{color:#0D151D}}
+.s-week{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.s-week i{height:22px;border-radius:5px;background:var(--surface-2)}
+.s-week i.c{background:var(--court)}.s-week i.p{background:var(--b2)}.s-week i.t{background:var(--b3)}
+section.band{padding:56px 0;border-top:1px solid var(--line)}
+h2{font-family:var(--display);font-weight:700;text-transform:uppercase;font-size:clamp(30px,4.5vw,44px);line-height:1;margin:8px 0 24px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.f{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.f h3{font-family:var(--display);font-weight:700;font-size:22px;text-transform:uppercase;margin:12px 0 6px;line-height:1.05}
+.f p{margin:0;color:var(--ink-2);font-size:15px}
+.ic{width:40px;height:40px;border-radius:10px;background:var(--court-soft);color:var(--court);display:grid;place-items:center}
+.ic svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.steps{counter-reset:s;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;list-style:none;margin:0;padding:0}
+.steps li{counter-increment:s;padding:20px;background:var(--surface);border-radius:14px;border:1px solid var(--line)}
+.steps li::before{content:counter(s);font-family:var(--display);font-weight:700;font-size:44px;line-height:1;color:var(--court);display:block;margin-bottom:6px}
+.steps b{display:block;font-size:17px;margin-bottom:4px}
+.steps span{color:var(--ink-2);font-size:15px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.inst{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px}
+.inst h3{margin:0 0 10px;font-size:18px}
+.inst ol{margin:0;padding-left:20px}
+.inst li{margin:4px 0}
+.k{display:inline-block;border:1.5px solid currentColor;border-radius:4px;padding:0 4px;font-size:12px;line-height:1.4}
+details{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:10px}
+summary{cursor:pointer;font-weight:600}
+details p{margin:10px 0 0;color:var(--ink-2)}
+footer{padding:36px 0 48px;border-top:1px solid var(--line);color:var(--ink-2);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+footer nav{display:flex;gap:18px;flex-wrap:wrap}
+@media (max-width:860px){.hero{grid-template-columns:1fr;padding-top:12px}.phone{order:2}.grid,.steps{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.grid,.steps,.two{grid-template-columns:1fr}.wrap{padding:0 16px}.btn{width:100%}.ctas{flex-direction:column}header.top .btn{width:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <header class="top">
+  <a class="brand" href="./"><svg viewBox="0 0 64 64" aria-hidden="true"><rect x="6" y="10" width="52" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="4"/><path d="M6 32h52M32 10v44" stroke="currentColor" stroke-width="2.5" opacity=".5"/><circle cx="46" cy="20" r="6" fill="#C6D62B"/></svg>Programme Padel</a>
+  <a class="btn small" href="./">Ouvrir l'app</a>
+ </header>
+
+ <div class="hero">
+  <div>
+   <div class="eyebrow">Gratuit · iPhone, Android et ordinateur</div>
+   <h1>Ta prépa physique de <em>padel</em>, dans ta poche</h1>
+   <p class="lead">Un programme de 12 semaines qui s'organise autour de tes cours, de tes parties et de tes tournois. Séances guidées avec minuteurs, mobilité quotidienne, suivi de tes progrès et idées de thèmes à travailler avec ton prof.</p>
+   <div class="ctas"><a class="btn" href="./">Commencer gratuitement</a><a class="btn ghost" href="#installer">Installer sur mon téléphone</a></div>
+   <p class="note">Sans publicité. Tes données restent sur ton appareil, ou dans ton compte si tu en crées un.</p>
+  </div>
+  <div class="phone" aria-hidden="true"><div class="screen">
+   <div class="s-eb">Salut Alex · mercredi</div><div class="s-h">Semaine 3</div>
+   <div class="s-card"><div class="s-eb">Ta semaine</div><div class="s-week" style="margin-top:6px"><i></i><i class="c"></i><i></i><i class="p"></i><i></i><i class="t"></i><i></i></div></div>
+   <div class="s-card main"><div class="s-eb">Au programme aujourd'hui</div><div class="s-t">Force &amp; explosivité</div>
+    <div class="s-row"><span>Box jump</span><b>3 × 4</b></div><div class="s-row"><span>Rotations médecine-ball</span><b>3 × 6</b></div><div class="s-row"><span>Squat goblet</span><b>3 × 10</b></div><div class="s-row"><span>Pallof press</span><b>3 × 10</b></div>
+    <div class="s-btn">Démarrer la séance</div></div>
+   <div class="s-card"><div class="s-eb">Mobilité · 12 min</div><div style="font-size:12px;font-weight:600">✓ Faite aujourd'hui</div></div>
+   <div class="s-card"><div class="s-eb">Cours de padel demain</div><div style="font-size:12px;font-weight:600">Suggestion : sortie de vitre</div><div style="font-size:10.5px;color:var(--ink-2)">3 smashs ratés par match lors de tes derniers tournois</div></div>
+   <div class="s-card"><div class="s-eb">Forme du matin</div><div style="display:flex;justify-content:space-between;align-items:baseline"><span class="s-t" style="font-size:22px">82/100</span><span style="font-size:11px;color:var(--b2);font-weight:600">En forme</span></div></div>
+  </div></div>
+ </div>
+</div>
+
+<section class="band"><div class="wrap">
+ <div class="eyebrow">Ce que fait l'app</div><h2>Tout ce qu'il faut pour tenir 3 sets</h2>
+ <div class="grid">
+  <div class="f"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></div><h3>Ta semaine, ton rythme</h3><p>Indique tes jours de cours, de partie et de tournoi : la séance de force se place loin du tournoi, l'activation la veille, la récup le lendemain.</p></div>
+  <div class="f"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></div><h3>Séances guidées</h3><p>Chaque exercice avec son schéma animé, ses explications et son minuteur. Annonces vocales, charges suggérées selon ta dernière séance.</p></div>
+  <div class="f"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div><h3>Des cycles qui progressent</h3><p>3 blocs de 4 semaines avec tests. À la fin, l'app analyse ton cycle et te propose le suivant : plus de force, d'explosivité ou d'endurance.</p></div>
+  <div class="f"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9M12 3v9l6-6"/></svg></div><h3>Adaptée à toi</h3><p>Niveau (P25 à P2000), âge, côté de jeu, objectif, matériel disponible et zones fragiles : le programme s'ajuste.</p></div>
+  <div class="f"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 19l6-6 4 4 6-8"/><circle cx="20" cy="9" r="1.5"/></svg></div><h3>Coach de cours</h3><p>Tes notes et tes stats de match (smashs ratés, fautes directes…) deviennent des idées de thèmes à travailler avec ton prof.</p></div>
+  <div class="f"><div class="ic"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h3>Coach et partenaire</h3><p>Partage ton suivi en lecture seule. Un coach suit tous ses joueurs sur un écran, ton partenaire voit vos tournois.</p></div>
+ </div>
+</div></section>
+
+<section class="band"><div class="wrap">
+ <div class="eyebrow">Comment ça marche</div><h2>Prêt en deux minutes</h2>
+ <ol class="steps">
+  <li><b>Ton profil</b><span>Âge, taille, niveau, côté de jeu, objectif et matériel.</span></li>
+  <li><b>Ta semaine</b><span>Chaque lundi, tes jours de cours, de partie et de tournoi.</span></li>
+  <li><b>Tu t'entraînes</b><span>Séance du jour, minuteurs, mobilité, et tu notes ton ressenti.</span></li>
+ </ol>
+</div></section>
+
+<section class="band" id="installer"><div class="wrap">
+ <div class="eyebrow">Comme une vraie app</div><h2>L'installer sur ton téléphone</h2>
+ <div class="two">
+  <div class="inst"><h3>iPhone (Safari)</h3><ol><li>Ouvre l'app dans <b>Safari</b>.</li><li>Touche <b>Partager</b> <span class="k">⬆︎</span> en bas de l'écran.</li><li>Choisis <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li></ol></div>
+  <div class="inst"><h3>Android (Chrome)</h3><ol><li>Ouvre l'app dans <b>Chrome</b>.</li><li>Touche le bouton <b>Installer</b> proposé par l'app, ou le menu <b>⋮</b>.</li><li>Choisis <b>Installer l'application</b>.</li></ol></div>
+ </div>
+ <p class="note">Sur ordinateur, ouvre simplement l'app dans ton navigateur. Avec un compte gratuit, tu retrouves tes données partout.</p>
+ <div class="ctas" style="margin-top:18px"><a class="btn" href="./">Ouvrir l'app</a></div>
+</div></section>
+
+<section class="band"><div class="wrap">
+ <div class="eyebrow">Questions fréquentes</div><h2>Bon à savoir</h2>
+ <details><summary>C'est vraiment gratuit ?</summary><p>Oui, sans publicité et sans abonnement.</p></details>
+ <details><summary>Faut-il créer un compte ?</summary><p>Non. Sans compte, tout reste sur ton appareil. Le compte (e-mail et mot de passe) sert à sauvegarder tes données et à les retrouver sur ton ordinateur ou un nouveau téléphone.</p></details>
+ <details><summary>Je n'ai pas de salle de sport</summary><p>Choisis « maison » ou « poids du corps » : chaque exercice est remplacé par une version sans machine.</p></details>
+ <details><summary>Je débute en compétition</summary><p>Le programme s'adapte à ton niveau : moins de volume, sauts plus doux et une progression pensée pour apprendre les mouvements.</p></details>
+ <details><summary>Et si j'ai mal quelque part ?</summary><p>Note la douleur dans l'app : elle ajoute un renforcement ciblé. Ce programme ne remplace pas l'avis d'un médecin ou d'un kinésithérapeute : consulte en cas de douleur persistante.</p></details>
+</div></section>
+
+<div class="wrap"><footer><span>Programme Padel · préparation physique pour joueurs de padel</span><nav><a href="./#confidentialite">Confidentialité</a><a href="./#mentions">Mentions légales</a><a href="./">Ouvrir l'app</a></nav></footer></div>
+</body>
+</html>

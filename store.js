@@ -1,6 +1,6 @@
 /* Programme Padel — données, calculs, sauvegarde, synchronisation, calendrier */
 "use strict";
-const COLLS=["logs","weights","tests","tournois","settings","mobilite","weeks","checkins","pains","ranking","adj","swaps","tech","nutri","bag","goals","meta","events","rehab","resume","gear","opps","videos","mental","sweat","meals","pushSub","notif","share"];
+const COLLS=["logs","weights","tests","tournois","settings","mobilite","weeks","checkins","pains","ranking","adj","swaps","tech","nutri","bag","goals","meta","events","rehab","resume","gear","opps","videos","mental","sweat","meals","pushSub","notif","share","follows","mstats"];
 const data={};COLLS.forEach(c=>data[c]={});
 const LSK="padel-plan-v1";
 function nextMonday(){const d=new Date();const k=(8-d.getDay())%7||7;d.setDate(d.getDate()+(d.getDay()===1?0:k));return iso(d);}
@@ -169,7 +169,7 @@ const Sync={
   async signUp(email,pw){const j=await this.auth("signup"+this.redirect(),{email,password:pw});if(j.access_token){this.keep(j,email);const c=this.cfg();delete c.pending;this.set(c);await this.pull(true);return "ok";}const c=this.cfg();c.email=email;c.pending=email;this.set(c);return "confirm";},
   async resend(email){const c=this.cfg();const r=await fetch(this.base()+"/auth/v1/resend"+this.redirect(),{method:"POST",headers:{apikey:c.key,"Content-Type":"application/json"},body:JSON.stringify({type:"signup",email})});if(!r.ok)throw new Error("Erreur "+r.status);},
   async signIn(email,pw){const j=await this.auth("token?grant_type=password",{email,password:pw});this.keep(j,email);const c=this.cfg();delete c.pending;this.set(c);await this.pull(true);},
-  signOut(){const c=this.cfg();delete c.access;delete c.refresh;delete c.userId;delete c.exp;this.set(c);this.status="Déconnecté";},
+  signOut(){try{localStorage.removeItem("padel-base");}catch(e){}const c=this.cfg();delete c.access;delete c.refresh;delete c.userId;delete c.exp;this.set(c);this.status="Déconnecté";},
   async token(){
     const c=this.cfg();if(!c.access)throw new Error("Non connecté");
     if(c.exp&&Date.now()>c.exp-60000){const j=await this.auth("token?grant_type=refresh_token",{refresh_token:c.refresh});this.keep(j);}
@@ -181,13 +181,41 @@ const Sync={
     if(!r.ok){const t=await r.text();throw new Error("Erreur "+r.status+" "+t.slice(0,120));}
     return method==="GET"?r.json():null;
   },
+  // Dernier état synchronisé (sert de référence pour fusionner sans rien perdre)
+  getBase(){try{const b=JSON.parse(localStorage.getItem("padel-base")||"null");return b&&b.u===this.cfg().userId?b.d:null;}catch(e){return null;}},
+  setBase(d){try{localStorage.setItem("padel-base",JSON.stringify({u:this.cfg().userId,d}));}catch(e){}},
+  // Écriture conditionnelle : n'écrit que si le serveur n'a pas changé depuis la lecture (sinon on relit et on refusionne)
+  async writeRemote(prevAt){
+    const c=this.cfg(),tk=await this.token(),prevMs=prevAt?new Date(prevAt).getTime():0;
+    const at=new Date(Math.max(data.meta.main.updatedAt||0,prevMs+1)).toISOString();
+    const h={apikey:c.key,Authorization:"Bearer "+tk,"Content-Type":"application/json"};
+    if(prevAt){const r=await fetch(this.base()+"/rest/v1/padel_state?user_id=eq."+encodeURIComponent(c.userId)+"&updated_at=eq."+encodeURIComponent(prevAt),{method:"PATCH",headers:{...h,Prefer:"return=representation"},body:JSON.stringify({data,updated_at:at})});
+      if(!r.ok){const t=await r.text();throw new Error("Erreur "+r.status+" "+t.slice(0,120));}
+      const j=await r.json().catch(()=>[]);return Array.isArray(j)&&j.length>0;}
+    const r=await fetch(this.base()+"/rest/v1/padel_state",{method:"POST",headers:{...h,Prefer:"return=minimal"},body:JSON.stringify({user_id:c.userId,data,updated_at:at})});
+    if(r.status===409)return false;
+    if(!r.ok){const t=await r.text();throw new Error("Erreur "+r.status+" "+t.slice(0,120));}
+    return true;},
   async push(){
     if(typeof READONLY!=="undefined"&&READONLY)return;
     if(!this.connected()||!navigator.onLine)return;
-    try{await this.rest("POST","",{user_id:this.cfg().userId,data,updated_at:new Date(data.meta.main.updatedAt||Date.now()).toISOString()});
+    if(this._busy){this._again=true;return;}
+    this._busy=true;
+    try{let ok=false;
+      for(let i=0;i<4&&!ok;i++){
+        const rows=await this.rest("GET","?select=data,updated_at");const row=rows&&rows[0];
+        if(row&&row.data){const m=mergeData(this.getBase(),data,row.data,{localAt:data.meta.main.updatedAt||0,remoteAt:new Date(row.updated_at).getTime()});
+          if(m.changedLocal){applyMerged(m.data);renderApp();}
+          if(!m.changedRemote){ok=true;break;}}
+        ok=await this.writeRemote(row?row.updated_at:null);
+      }
+      if(!ok)throw new Error("conflit d'écriture, nouvel essai bientôt");
+      this.setBase(JSON.parse(JSON.stringify(data)));
       this.status="Synchronisé à "+new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});const c=this.cfg();c.last=Date.now();this.set(c);}
-    catch(e){this.status="Échec de la synchronisation : "+e.message;}
+    catch(e){this.status="Échec de la synchronisation : "+e.message;this._again=true;}
+    finally{this._busy=false;}
     paintSyncStatus();
+    if(this._again){this._again=false;clearTimeout(this._t);this._t=setTimeout(()=>this.push(),this.status.startsWith("Échec")?15000:2500);}
   },
   async pull(first){
     if(typeof READONLY!=="undefined"&&READONLY)return;
@@ -195,18 +223,45 @@ const Sync={
     try{
       const rows=await this.rest("GET","?select=data,updated_at");
       const row=rows&&rows[0];
-      const remoteAt=row?new Date(row.updated_at).getTime():0,localAt=data.meta.main.updatedAt||0;
-      if(row&&row.data&&(remoteAt>localAt||(first&&totalDone()===0&&remoteAt>0))){
-        COLLS.forEach(c=>{if(row.data[c])data[c]=row.data[c];});normalize();data.meta.main.updatedAt=remoteAt;
-        try{localStorage.setItem(LSK,JSON.stringify(data));}catch(e){}
-        this.status="Données récupérées depuis ton compte";toast("Données synchronisées");renderApp();
-      }else if(!row||localAt>remoteAt){await this.push();return;}
-      else this.status="À jour";
+      if(!row||!row.data){await this.push();return;}
+      const remoteAt=new Date(row.updated_at).getTime(),localAt=data.meta.main.updatedAt||0;
+      const m=mergeData(this.getBase(),data,row.data,{localAt,remoteAt,preferRemote:first&&totalDone()===0});
+      // Compte déjà configuré ailleurs : pas besoin de refaire l'accueil sur ce nouvel appareil
+      const rs=row.data.settings&&row.data.settings.main;if(rs&&rs.onboarded!==false&&m.data.settings&&m.data.settings.main&&!m.data.settings.main.onboarded){m.data.settings.main.onboarded=true;m.changedLocal=true;m.changedRemote=true;}
+      if(m.changedLocal){applyMerged(m.data);this.status="Données récupérées depuis ton compte";if(!first)toast("Données synchronisées");renderApp();}
+      if(m.changedRemote){await this.push();return;}
+      this.setBase(JSON.parse(JSON.stringify(data)));
+      if(!m.changedLocal)this.status="À jour";
     }catch(e){this.status="Échec de la synchronisation : "+e.message;}
     paintSyncStatus();
   },
   schedule(){if(!this.connected())return;clearTimeout(this._t);this._t=setTimeout(()=>this.push(),2500);}
 };
+/* Fusion à trois voies : référence commune (base), cet appareil (local), le serveur (remote).
+   Chaque séance, pesée, tournoi… est fusionné séparément : deux appareils peuvent travailler hors ligne sans s'écraser. */
+const FIELD_MERGE=new Set(["settings","meta","bag"]);
+const jeq=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+function merge3(b,l,r,localWins){
+  if(jeq(l,r))return l;
+  if(b!==undefined&&jeq(l,b))return r;
+  if(b!==undefined&&jeq(r,b))return l;
+  if(l===undefined)return r;if(r===undefined)return l;
+  return localWins?l:r;}
+function mergeData(base,local,remote,{localAt=0,remoteAt=0,preferRemote=false}={}){
+  const out={},localWins=!preferRemote&&localAt>=remoteAt;
+  COLLS.forEach(c=>{const B=base&&base[c]||(base?{}:undefined),L=local[c]||{},R=remote[c]||{};const o={};
+    const keys=new Set([...Object.keys(L),...Object.keys(R),...(B?Object.keys(B):[])]);
+    keys.forEach(k=>{let v;
+      if(FIELD_MERGE.has(c)&&L[k]&&R[k]&&typeof L[k]==="object"&&typeof R[k]==="object"){
+        const bb=B&&B[k]||{},f={};new Set([...Object.keys(L[k]),...Object.keys(R[k])]).forEach(fk=>{const fv=merge3(B?bb[fk]:undefined,L[k][fk],R[k][fk],localWins);if(fv!==undefined)f[fk]=fv;});v=f;}
+      else v=merge3(B?B[k]:undefined,L[k],R[k],localWins);
+      if(v!==undefined)o[k]=v;});
+    out[c]=o;});
+  if(out.meta&&out.meta.main)out.meta.main.updatedAt=Math.max(localAt,remoteAt);
+  const pick=d=>{const x={};COLLS.forEach(c=>x[c]=d[c]||{});return x;};
+  const cmp=d=>{const x=pick(d);if(x.meta&&x.meta.main){x.meta={...x.meta,main:{...x.meta.main,updatedAt:0}};}return JSON.stringify(x);};
+  return {data:out,changedLocal:cmp(out)!==cmp(local),changedRemote:cmp(out)!==cmp(remote)};}
+function applyMerged(m){COLLS.forEach(c=>{data[c]=m[c]||{};});normalize();try{localStorage.setItem(LSK,JSON.stringify(data));}catch(e){}}
 function paintSyncStatus(){const el=$("#authpage #sync-status")||$("#onboard #sync-status")||$("#sync-status");if(el){el.textContent=Sync.status||"";el.classList.toggle("bad-txt",/^(Échec|Indique|Les deux|Mot de passe :)/.test(Sync.status||""));}}
 
 /* ---------- Calendrier iPhone (.ics) ---------- */

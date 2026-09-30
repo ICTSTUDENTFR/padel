@@ -99,7 +99,11 @@ const MORE=[
  ["reglages","Réglages","Profil, programme, sauvegarde, compte"]];
 function renderMore(){
   if(state.sub&&SUBS[state.sub])return `<button class="back" type="button" data-sub="">‹ Plus</button>`+SUBS[state.sub]();
-  return `<div class="tiles">${MORE.map(([k,t,d])=>`<button class="tile" type="button" data-sub="${k}"><b>${t}</b><span>${d}</span></button>`).join("")}</div>`;
+  const G=[["Entraînement",["cycle","mobilite","programme","guide","tests","renfo","reprise","outils"]],["Padel et compétition",["cours","technique","match","tournoi","calendrier-tournois","tournois","adversaires","partenaire","videos","mental"]],["Santé et nutrition",["douleurs","objectifs","nutrition","repas"]],["Partage et outils",["coach","bilan","calendrier","raccourcis","materiel"]],["Compte et application",["reglages","admin","confidentialite","mentions"]]];
+  const used=new Set(),tile=([k,t,d])=>`<button class="tile" type="button" data-sub="${k}"><b>${t}</b><span>${d}</span></button>`;
+  const out=G.map(([g,keys])=>{const items=keys.map(k=>MORE.find(m=>m[0]===k)).filter(Boolean);items.forEach(m=>used.add(m[0]));return items.length?`<h3 class="tiles-h">${g}</h3><div class="tiles">${items.map(tile).join("")}</div>`:"";}).join("");
+  const rest=MORE.filter(m=>!used.has(m[0]));
+  return out+(rest.length?`<h3 class="tiles-h">Autres</h3><div class="tiles">${rest.map(tile).join("")}</div>`:"");
 }
 const SUBS={};
 SUBS.mobilite=()=>{const tdy=todayIso(),on=!!data.mobilite[tdy],w=curWeek();
@@ -350,6 +354,8 @@ SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
     <div class="form-row"><label>Début du programme (un lundi)<input type="date" name="start" value="${esc(s.start||"")}"></label>
      <label>Côté de jeu<select name="side">${opt([["gauche","Gauche"],["droite","Droite"]],s.side)}</select></label>
      <label>Catégorie habituelle<select name="level">${opt(LEVELS.map(l=>[l,l]),s.level)}</select></label></div>
+    <div class="form-row"><label>Objectif<select name="goal">${opt(GOALS.map(g=>[g[0],g[1]]),s.goal||"performance")}</select></label>
+     <label>Matériel<select name="equip">${opt(EQUIPS.map(g=>[g[0],g[1]]),s.equip||"salle")}</select></label></div>
     <div class="form-row"><label>Jour de tournoi habituel<select name="tDefault">${opt(TDAY_OPTS,s.tDefault||"sam")}</select></label>
      <label>Jour de cours habituel<select name="lessonDay">${opt(LESSON_DAYS,s.lessonDay||"mar")}</select></label></div></section>
    <section class="card stack"><div><div class="eyebrow">Affichage</div><h2>Préférences</h2></div>
@@ -361,10 +367,8 @@ SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
    <p class="small">Dernière sauvegarde : ${data.meta.main.lastExport?fr(data.meta.main.lastExport):"jamais"}. Enregistre le fichier dans Fichiers, iCloud Drive ou Google Drive.</p>
    <div class="actions"><button class="btn" type="button" data-export="1">Exporter une sauvegarde</button><label class="btn ghost filebtn">Restaurer<input type="file" id="file-import" accept="application/json,.json" hidden></label></div></section>
   ${settingsExtra()}
-  <section class="card stack"><div><div class="eyebrow">Confidentialité</div><h2>Tes données</h2></div>
-   <p class="small">${con?"Tes données sont enregistrées sur cet appareil et dans ton compte en ligne, accessible uniquement avec ton identifiant.":"Tes données restent uniquement sur cet appareil : rien n'est envoyé en ligne."} Tu peux les exporter ou les effacer à tout moment.</p>
-   <p class="small muted">Cette application propose un entraînement général et ne remplace pas l'avis d'un médecin ou d'un kinésithérapeute. En cas de douleur persistante, consulte un professionnel de santé.</p>
-   <div class="actions"><button class="btn ghost danger" type="button" data-wipe="1">Effacer toutes mes données</button></div></section>
+  ${dataCard()}
+  ${feedbackCard()}
   <section class="card stack"><h3>À propos</h3><p class="muted small">${esc(APP_CONFIG.name||"Programme Padel")} · version ${APP_VERSION}${APP_CONFIG.contactEmail?` · <a href="mailto:${esc(APP_CONFIG.contactEmail)}">Contact</a>`:""}</p></section>`;};
 
 /* ---------- Images à partager ---------- */

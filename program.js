@@ -134,7 +134,8 @@ function weekLayout(w){
   const needPrev=!pads.length;
   if(!hasC&&rest.length){const i=rest.includes(0)?0:rest[0];out[K[i]]={t:"C",prev:needPrev};rest.splice(rest.indexOf(i),1);}
   else if(needPrev){const c=K.find(k=>out[k]&&out[k].t==="C");if(c)out[c].prev=true;}
-  const cardioSlots=(tIdx.length?0:1)+(cfg.focus==="endurance"?1:0);
+  const goal=(data.settings.main&&data.settings.main.goal)||"performance";
+  const cardioSlots=(tIdx.length?0:1)+(cfg.focus==="endurance"||goal==="poids"?1:0);
   for(let n=0;n<cardioSlots&&rest.length;n++){const i=rest.find(j=>!(out[K[j-1]]&&out[K[j-1]].t==="A"))??rest[0];out[K[i]]={t:"Z"};rest.splice(rest.indexOf(i),1);}
   rest.forEach(i=>{out[K[i]]={t:"R"};});
   return out;
@@ -199,8 +200,10 @@ function planFor(w,d){
   if(src!==d)p.moved=src;
   const id=`s${w}-${d}`,adj=data.adj[id]||{};
   if(adj.short&&!p.short&&(p.kind==="A"||p.kind==="P")){p.short=true;p.userShort=true;if(p.kind==="A"){p.items=p.items.slice(0,8);p.dur=Math.round(p.dur*0.7);}}
-  if(adj.home&&(p.kind==="A"||p.kind==="P"||p.kind==="T")){p.home=true;p.items=p.items.map(it=>{const a=ALT[it[0]];return a?[a.k,it[1],a.r||it[2],a.n+(it[3]?" · "+it[3]:""),it[4]]:it;});p.place="Maison";}
+  const eq=(data.settings.main&&data.settings.main.equip)||"salle",wantHome=adj.home!==undefined?!!adj.home:eq!=="salle";
+  if(wantHome&&(p.kind==="A"||p.kind==="P"||p.kind==="T")){p.home=true;p.items=p.items.map(it=>{const a=ALT[it[0]];return a?[a.k,it[1],a.r||it[2],a.n+(it[3]?" · "+it[3]:""),it[4]]:it;});p.place="Maison";}
   p.id=id;p.w=w;p.d=d;
+  applyProfile(p);
   if(typeof applyAdaptive==="function")applyAdaptive(p);
   p.dl=(isDeload(w)&&"AP".includes(p.kind))||!!p.short;
   return p;
@@ -213,3 +216,25 @@ const BAG_DEFAULT=["Raquette + raquette de secours","Surgrips de rechange","Ball
 const TECH_THEMES=["Bandeja","Víbora","Smash par 3","Smash par 4","Sortie de vitre","Lob de défense","Volée","Bajada","Chiquita","Service / retour","Placement et transitions","Jeu de filet en duo"];
 
 const itDl=(p,it)=>!!p.dl&&it[5]!=="rehab";
+
+/* ---------- Adaptation au profil : niveau, âge, objectif ---------- */
+const LEVEL_ORDER=["P25","P100","P250","P500","P1000","P1500","P2000"];
+function profileTier(){const s=data.settings.main||{},li=Math.max(0,LEVEL_ORDER.indexOf(s.level||"P250")),age=+s.age||30;
+  return {beginner:li<=1,expert:li>=4,senior:age>=45,young:age<20,li,age};}
+function applyProfile(p){if(!"AT".includes(p.kind)&&!(p.kind==="P"))return p;
+  const T=profileTier(),cues=[];
+  if(p.kind==="A"){
+    if(T.beginner||T.senior){
+      p.items=p.items.map(it=>{let x=it.slice();
+        if(x[0]==="depth_jump")x=["box_jump",x[1],"4","Version adaptée à ton niveau : saut sur une box basse, réception douce"];
+        if(x[0]==="contrast_squat")x=["back_squat",x[1],"5","Version adaptée : squat seul, sans sauts enchaînés"];
+        if(typeof x[1]==="number"&&x[1]>=3&&x[5]!=="rehab")x[1]=x[1]-1;
+        return x;});
+      cues.push(T.beginner?"Adapté à ton niveau : une série de moins, charges modérées, technique d'abord.":"Adapté à ton âge : une série de moins, échauffement 5 min plus long et réceptions de sauts très souples.");}
+    else if(T.expert){
+      p.items=p.items.map(it=>{const e=EX[it[0]];return e&&e.c==="Explosivité"&&typeof it[1]==="number"&&it[5]!=="rehab"?[it[0],it[1]+1,it[2],it[3],it[4],it[5]].slice(0,Math.max(4,it.length)):it;});
+      cues.push("Niveau confirmé : une série d'explosivité en plus, qualité maximale sur chaque répétition.");}
+  }
+  if(p.kind==="P"&&T.beginner&&p.items.length>2){cues.push("Garde de l'énergie pour le jeu : le complément se fait à intensité modérée.");}
+  if(cues.length)p.cue=(p.cue?p.cue+" ":"")+cues.join(" ");
+  return p;}

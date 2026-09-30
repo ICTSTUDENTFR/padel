@@ -181,6 +181,7 @@ function handleHash(){
   const [route,qs]=h.split("?"),q=new URLSearchParams(qs||"");
   let handled=true;
   if(route==="aujourdhui"){go("today");}
+  else if(route==="confidentialite"||route==="mentions"){openLegal(route);}
   else if(route==="seance"){const ref=todayRef();if(ref){const p=planFor(ref.w,ref.d);if(p.kind!=="R")setTimeout(()=>openRunner(p.id),50);}else toast("Le programme n'a pas encore commencé");}
   else if(route==="mobilite"){go("more","mobilite");setTimeout(()=>{const b=$('[data-timer="mobroutine"]');b&&b.click();},80);}
   else if(route==="respiration"){go("more","outils");setTimeout(()=>{const b=$('[data-timer="rt-breath"]');b&&b.click();},80);}
@@ -207,7 +208,7 @@ function buildNotifQueue(){
     if(pr.mobility&&!data.mobilite[ds]){const a=at(ds,S_().mobTime);if(a.getTime()>now)Q.push({id:`m-${ds}`,at:a.toISOString(),title:"Mobilité du jour",body:"12 minutes de routine guidée"});}
     const nx=planFor(...(()=>{const n=addDays(ds,1),ww=weekOfDate(n);return [Math.max(1,ww),dayKeyOf(n)];})());
     if(pr.eve&&nx.kind==="M"&&!nx.title.includes("suite")&&p.kind!=="M"){const a=at(ds,"19:30");if(a.getTime()>now)Q.push({id:`e-${ds}`,at:a.toISOString(),title:"Tournoi demain",body:"Prépare ton sac et couche-toi tôt"});}
-    if(pr.weekly&&d==="lun"&&w>1){const a=at(ds,"09:00");if(a.getTime()>now)Q.push({id:`w-${ds}`,at:a.toISOString(),title:"Ton bilan de la semaine est prêt",body:"Ouvre l'app pour voir ta semaine "+(w-1)});}
+    if(pr.weekly&&d==="dim"){const a=at(ds,"19:00");if(a.getTime()>now)Q.push({id:`w-${ds}`,at:a.toISOString(),title:"Ta semaine "+w+" est terminée",body:"Fais le point sur tes séances et indique tes jours de padel pour la semaine prochaine."});}
   }
   if(pr.deadline)upcomingEvents().forEach(e=>{if(e.deadline&&!e.registered){[3,1].forEach(k=>{const a=at(addDays(e.deadline,-k),"10:00");if(a.getTime()>now)Q.push({id:`d-${e.id}-${k}`,at:a.toISOString(),title:"Inscription à faire",body:`${e.cat} ${e.lieu||""} : clôture le ${fr(e.deadline)}`});});}});
   return Q.sort((a,b)=>a.at.localeCompare(b.at));
@@ -295,7 +296,7 @@ SUBS["calendrier-tournois"]=()=>{
      <div class="muted small">${n>0?`dans ${plural(n,"jour")}`:n===0?"aujourd'hui":"en cours"}${e.deadline?` · inscription avant le ${fr(e.deadline)}${!e.registered&&dl!=null&&dl>=0?` (${plural(dl,"jour")})`:""}`:""}${e.note?" · "+esc(e.note):""}</div></div>
      <div class="actions"><button class="chip-btn" type="button" data-evreg="${e.id}" aria-pressed="${!!e.registered}">${e.registered?"✓ Inscrit":"Inscrit ?"}</button><button class="chip-btn" type="button" data-evgoal="${e.id}" aria-pressed="${!!e.goal}">Objectif</button><button class="del" type="button" data-del="events:${e.id}">supprimer</button></div></div>`;};
   return `<section class="card stack"><div><div class="eyebrow">Ton calendrier de compétition</div><h2>Tournois à venir</h2></div>
-   <p class="small">Chaque tournoi ajouté règle automatiquement le programme de sa semaine (vendredi, samedi ou dimanche). Marque tes tournois importants comme <b>objectif</b> : les 10 jours d'avant passent en affûtage pour arriver au top.</p>
+   <p class="small">Chaque tournoi ajouté se reporte dans ta semaine et le programme s'adapte autour. Marque tes tournois importants comme <b>objectif</b> : les 10 jours d'avant passent en affûtage pour arriver au top.</p>
    <form class="stack" data-evadd="1"><div class="form-row"><label>Début<input type="date" name="date" required></label><label>Fin (si plusieurs jours)<input type="date" name="end"></label>
      <label>Catégorie<select name="cat">${LEVELS.map(c=>`<option ${c===(S_().level||"P250")?"selected":""}>${c}</option>`).join("")}</select></label><label>Club / lieu<input name="lieu"></label></div>
     <div class="form-row"><label>Clôture des inscriptions<input type="date" name="deadline"></label><label>Note<input name="note" placeholder="partenaire, horaires…"></label><label class="check"><input type="checkbox" name="goal"> Tournoi objectif</label><label class="check"><input type="checkbox" name="registered"> Déjà inscrit</label></div>
@@ -406,7 +407,7 @@ function settingsExtra(){
   return `${cloudOn()?`<section class="card stack"><div><div class="eyebrow">Nécessite un compte et l'app installée sur l'écran d'accueil</div><h2>Notifications</h2></div>
    <p class="small">Rappels de séance, de mobilité, de tournoi et d'inscription. Sur iPhone : iOS 16.4 ou plus, depuis l'icône de l'écran d'accueil uniquement.</p>
    <div class="actions">${sub?`<span class="okline">✓ Activées sur cet appareil</span><button class="btn ghost small" type="button" data-push="off">Désactiver</button>`:`<button class="btn" type="button" data-push="on" ${con?"":"disabled"}>Activer les notifications</button>`}</div>
-   <div class="nq">${[["session","Séance dans 30 min"],["mobility","Mobilité du jour"],["eve","Veille de tournoi"],["deadline","Inscriptions à faire"],["weekly","Bilan du lundi"]].map(([k,l])=>`<button class="chip-btn" type="button" data-npref="${k}" aria-pressed="${!!pr[k]}">${pr[k]?"✓ ":""}${l}</button>`).join("")}</div>
+   <div class="nq">${[["session","Séance dans 30 min"],["mobility","Mobilité du jour"],["eve","Veille de tournoi"],["deadline","Inscriptions à faire"],["weekly","Bilan du dimanche soir"]].map(([k,l])=>`<button class="chip-btn" type="button" data-npref="${k}" aria-pressed="${!!pr[k]}">${pr[k]?"✓ ":""}${l}</button>`).join("")}</div>
    ${sub?`<p class="muted small">${((data.notif.main||{}).queue||[]).length} rappels programmés sur 14 jours.</p>`:""}</section>
   <section class="card stack"><div><div class="eyebrow">Lecture seule</div><h2>Partager avec un coach</h2></div>
    <p class="small">Crée un lien que ton coach ou ton partenaire peut ouvrir pour voir tes séances, charges, tests et tournois, sans rien pouvoir modifier. Tu peux le désactiver à tout moment.</p>
