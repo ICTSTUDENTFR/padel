@@ -173,6 +173,7 @@ function renderToday(){
   out.push(todayExtras());
   out.push(lessonCardToday());
   out.push(alertsHtml());
+  if(typeof accountNudge==="function")out.push(accountNudge());
   out.push(checkinCard());
   if(ref){
     const p=planFor(ref.w,ref.d),log=data.logs[p.id];

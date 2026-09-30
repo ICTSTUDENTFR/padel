@@ -4,7 +4,9 @@ const OB={step:0,login:false,weight:null};
 const OB_STEPS=4;
 function friendlyAuthErr(m){m=String(m||"");
   if(/invalid login|invalid_grant|credentials/i.test(m))return "e-mail ou mot de passe incorrect";
-  if(/already registered|already exists/i.test(m))return "un compte existe déjà avec cet e-mail : connecte-toi";
+  if(/already registered|already exists|already been registered/i.test(m))return "un compte existe déjà avec cet e-mail : utilise « J'ai déjà un compte »";
+  if(/signups? not allowed|disabled/i.test(m))return "les inscriptions sont fermées pour le moment";
+  if(/invalid.*email|email.*invalid/i.test(m))return "adresse e-mail invalide";
   if(/not confirmed/i.test(m))return "confirme d'abord ton e-mail (regarde tes spams)";
   if(/password/i.test(m)&&/6|short|weak/i.test(m))return "mot de passe trop court (6 caractères minimum)";
   if(/rate|too many/i.test(m))return "trop de tentatives, réessaie dans quelques minutes";
@@ -24,8 +26,7 @@ function obBody(){const s=S_();
     <button class="btn block" type="submit">Commencer</button></form>
    <div class="ob-alt"><label class="linkbtn filebtn">Restaurer une sauvegarde<input type="file" id="file-import" accept="application/json,.json" hidden></label>
     ${cloudOn()?`<button class="linkbtn" type="button" data-ob="login">J'ai déjà un compte</button>`:""}</div>
-   ${OB.login&&cloudOn()?`<form class="stack ob-login" data-syncform="1"><label>E-mail<input type="email" name="email" autocomplete="username" autocapitalize="off" required></label><label>Mot de passe<input type="password" name="pw" autocomplete="current-password" required></label>
-    <div class="actions"><button class="btn" type="submit" name="act" value="in">Se connecter</button><button class="linkbtn" type="submit" name="act" value="recover">Mot de passe oublié ?</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p></form>`:""}`;
+   ${OB.login&&cloudOn()?`<div class="ob-login">${accountForm("onboard")}</div>`:""}`;
   if(OB.step===1)return `<div class="eyebrow">Étape 1 · Profil</div><h2>Parle-moi de toi</h2>
    <p class="small muted">Sert à calculer tes zones cardiaques et tes besoins nutritionnels. Tout reste modifiable dans Réglages.</p>
    <form class="stack" data-onboard="1">
@@ -53,20 +54,34 @@ function obBody(){const s=S_();
     <li><b>Padel</b><span>Joueur${s.sex==="F"?"se":""} de ${s.side} · ${esc(s.level)}</span></li><li><b>Tournois</b><span>${esc((TDAY_OPTS.find(x=>x[0]===s.tDefault)||[,"Samedi"])[1])}</span></li>
     <li><b>Zone 2 cardio</b><span>${zone2Range()} bpm</span></li></ul>
    ${bmi&&bmi>=25?`<p class="small muted">Objectif poids : tu peux choisir une perte douce dans Réglages, les apports seront calculés pour toi.</p>`:""}
-   <form class="stack" data-onboard="4"><div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">C'est parti</button></div></form>`;}
+   ${cloudOn()?`<form class="stack" data-onboard="4" novalidate>
+    <section class="ob-acc stack"><div><div class="eyebrow">Gratuit · recommandé</div><h3>Crée ton compte</h3></div>
+     <p class="small muted">Tes séances et tes progrès sont sauvegardés en ligne et tu retrouves tout sur ton ordinateur ou un nouveau téléphone.</p>
+     <label>E-mail<input type="email" name="email" autocomplete="username" autocapitalize="off" autocorrect="off"></label>
+     <label>Mot de passe (6 caractères minimum)<input type="password" name="pw" autocomplete="new-password" minlength="6"></label>
+     <label>Confirme le mot de passe<input type="password" name="pw2" autocomplete="new-password" minlength="6"></label>
+     <p class="small" id="ob-acc-status" role="status"></p>
+     <button class="btn block" type="submit" name="go" value="acc">Créer mon compte et commencer</button></section>
+    <div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn ghost" type="submit" name="go" value="skip">Continuer sans compte</button></div></form>`
+   :`<form class="stack" data-onboard="4"><div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">C'est parti</button></div></form>`}`;}
 function obNav(){return `<div class="ob-nav"><button class="btn ghost" type="button" data-ob="back">Retour</button><button class="btn" type="submit">Continuer</button></div>`;}
 function renderOnboard(){let el=$("#onboard");
   if(READONLY||S_().onboarded){if(el){el.remove();document.body.classList.remove("ob-open");}return;}
   if(!el){el=document.createElement("div");el.id="onboard";el.setAttribute("role","dialog");el.setAttribute("aria-modal","true");el.setAttribute("aria-label","Configuration");document.body.appendChild(el);document.body.classList.add("ob-open");}
   el.innerHTML=`<div class="ob-card">${obDots()}${obBody()}</div>`;el.scrollTop=0;
   const first=el.querySelector("input:not([type=hidden]):not([type=file]):not([type=checkbox]):not([type=radio])");if(first&&OB.step===1&&!first.value)setTimeout(()=>{try{first.focus({preventScroll:true});}catch(e){}},50);}
-function onboardClick(t){const a=t.dataset.ob;if(a==="back"){OB.step=Math.max(0,OB.step-1);}else if(a==="login"){OB.login=!OB.login;}renderOnboard();}
-function onboardSubmit(f){const s=S_(),n=+f.dataset.onboard,v=k=>f.elements[k]?f.elements[k].value:"";
+function onboardClick(t){const a=t.dataset.ob;if(a==="back"){OB.step=Math.max(0,OB.step-1);}else if(a==="login"){OB.login=!OB.login;state.accMode="in";Sync.status="";}renderOnboard();}
+async function onboardSubmit(f,sb){const s=S_(),n=+f.dataset.onboard,v=k=>f.elements[k]?f.elements[k].value:"";
   if(n===1){s.name=v("name").trim().slice(0,30);s.sex=v("sex")||"H";s.age=num(v("age"));s.height=num(v("height"));OB.weight=num(v("kg"));}
   if(n===2){s.side=v("side")||"gauche";s.level=v("level");s.tDefault=v("tDefault");s.lessonDay=v("lessonDay");}
   if(n===3){s.start=v("start")||nextMonday();}
-  if(n===4){if(OB.weight){const id=uid();save("weights",id,{id,date:todayIso(),kg:OB.weight},{silent:true});}
-    s.onboarded=true;lsSave();state.week=null;renderOnboard();renderApp({force:true});window.scrollTo(0,0);toast(s.name?"Bienvenue "+s.name+" !":"Bienvenue !");return;}
+  if(n===4&&sb&&sb.value==="acc"){const st=$("#ob-acc-status"),em=v("email").trim(),pw=v("pw");
+    const err=accCheck(em,pw,v("pw2"),"up");if(err){st.textContent=err;st.className="small bad-txt";return;}
+    st.className="small muted";st.textContent="Création du compte…";sb.disabled=true;
+    try{const r=await Sync.signUp(em,pw);obFinish(r==="confirm"?"Compte créé : clique sur le lien reçu par e-mail pour l'activer":"Compte créé, tes données sont sauvegardées");}
+    catch(e){sb.disabled=false;st.className="small bad-txt";st.textContent=friendlyAuthErr(e.message);}
+    return;}
+  if(n===4){obFinish();return;}
   lsSave();OB.step=n+1;renderOnboard();}
 
 /* Liens reçus par e-mail (confirmation de compte, mot de passe oublié) */
@@ -76,8 +91,9 @@ function handleAuthHash(){
   if(q.get("error_description")){toast("Lien expiré ou déjà utilisé : recommence depuis Réglages",true);return true;}
   let sub=null,email="";try{const pl=JSON.parse(atob(q.get("access_token").split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));sub=pl.sub;email=pl.email||"";}catch(e){}
   Sync.keep({access_token:q.get("access_token"),refresh_token:q.get("refresh_token"),expires_in:+q.get("expires_in")||3600,user:{id:sub}},email);
+  {const cc=Sync.cfg();delete cc.pending;Sync.set(cc);}
   if(q.get("type")==="recovery"){showPwReset();}
-  else{Sync.pull(true).then(()=>{toast("Compte confirmé : tu es connecté");renderApp({force:true});renderOnboard();}).catch(()=>{});}
+  else{Sync.pull(true).then(()=>{renderApp({force:true});renderOnboard();if(S_().onboarded)toast("Compte activé : tu es connecté");else showActivated();}).catch(()=>{});}
   return true;}
 function showPwReset(){let el=$("#pwreset");if(!el){el=document.createElement("div");el.id="pwreset";el.className="ob-modal";document.body.appendChild(el);}
   el.innerHTML=`<form class="card stack" data-pwreset="1"><h2>Nouveau mot de passe</h2><label>Mot de passe (6 caractères minimum)<input type="password" name="pw" minlength="6" autocomplete="new-password" required></label>
@@ -88,3 +104,34 @@ document.addEventListener("submit",async e=>{const f=e.target;if(!f.dataset||!f.
   try{const c=Sync.cfg(),tk=await Sync.token();const r=await fetch(Sync.base()+"/auth/v1/user",{method:"PUT",headers:{apikey:c.key,Authorization:"Bearer "+tk,"Content-Type":"application/json"},body:JSON.stringify({password:pw})});
    if(!r.ok)throw new Error("Erreur "+r.status);$("#pwreset").remove();toast("Mot de passe modifié");await Sync.pull(true);renderApp({force:true});renderOnboard();}
   catch(err){st.textContent="Échec : "+friendlyAuthErr(err.message);}},true);
+
+function obFinish(msg){const s=S_();
+  if(OB.weight){const id=uid();save("weights",id,{id,date:todayIso(),kg:OB.weight},{silent:true});OB.weight=null;}
+  s.onboarded=true;lsSave();state.week=null;renderOnboard();renderApp({force:true});window.scrollTo(0,0);
+  toast(msg||(s.name?"Bienvenue "+s.name+" !":"Bienvenue !"));}
+function accCheck(email,pw,pw2,mode){
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return "Indique une adresse e-mail valide";
+  if(mode==="recover")return "";
+  if(!pw)return "Indique ton mot de passe";
+  if(mode==="up"&&pw.length<6)return "Mot de passe : 6 caractères minimum";
+  if(mode==="up"&&pw!==pw2)return "Les deux mots de passe ne sont pas identiques";
+  return "";}
+async function accountSubmit(f,act){const v=k=>f.elements[k]?f.elements[k].value:"",c=Sync.cfg(),em=v("email").trim();
+  const say=m=>{Sync.status=m;paintSyncStatus();};
+  if(!cloudOn()){say("Les comptes ne sont pas disponibles pour le moment");return;}
+  const err=accCheck(em,v("pw"),v("pw2"),act);if(err){say(err);return;}
+  c.email=em;Sync.set(c);
+  if(act==="recover"){say("Envoi…");try{await Sync.recover(em);say("E-mail envoyé : suis le lien pour choisir un nouveau mot de passe (pense aux spams).");}catch(e){say("Échec : "+friendlyAuthErr(e.message));}return;}
+  say(act==="up"?"Création du compte…":"Connexion…");
+  try{if(act==="up"){const r=await Sync.signUp(em,v("pw"));
+      if(r==="confirm"){Sync.status="Compte créé ! Clique sur le lien reçu par e-mail pour l'activer.";renderApp({force:true});renderOnboard();return;}
+      Sync.status="Compte créé";toast("Compte créé : tes données sont sauvegardées");}
+    else{await Sync.signIn(em,v("pw"));Sync.status="Connecté";toast("Connecté");}
+    renderApp({force:true});renderOnboard();}
+  catch(e){say("Échec : "+friendlyAuthErr(e.message));}}
+function accountNudge(){if(!cloudOn()||READONLY||Sync.connected()||Sync.cfg().pending||data.meta.main.accNudgeOff||totalDone()<1)return "";
+  return `<section class="card stack acc-nudge"><div><div class="eyebrow">Ne perds rien</div><h3>Crée ton compte gratuit</h3></div>
+   <p class="small">Tes séances sont pour l'instant enregistrées uniquement sur cet appareil. Avec un compte, elles sont sauvegardées et synchronisées partout.</p>
+   <div class="actions"><button class="btn" type="button" data-goto="more:reglages">Créer mon compte</button><button class="linkbtn" type="button" data-accnudge="1">Plus tard</button></div></section>`;}
+function showActivated(){let el=$("#pwreset");if(!el){el=document.createElement("div");el.id="pwreset";el.className="ob-modal";document.body.appendChild(el);}
+  el.innerHTML=`<div class="card stack"><h2>Compte activé</h2><p>Ton adresse est confirmée.</p><p class="small muted">Si tu as installé l'app sur ton écran d'accueil, ouvre-la et touche « J'ai déjà un compte » (Réglages > Mon compte) pour te connecter : tes données s'y synchroniseront. Sinon, tu peux continuer ici.</p><div class="actions"><button class="btn" type="button" data-pwclose="1">Continuer ici</button></div></div>`;}

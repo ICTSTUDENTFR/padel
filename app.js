@@ -1,6 +1,6 @@
 /* Programme Padel — navigation, évènements, démarrage */
 "use strict";
-const APP_VERSION="3.2.0";
+const APP_VERSION="3.3.0";
 const TABS=[["today","Aujourd'hui",'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
  ["week","Semaine",'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
  ["lib","Exercices",'<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'],
@@ -46,6 +46,9 @@ document.addEventListener("click",e=>{
   // Coach technique
   if(D.choose){const [k,d]=D.choose.split("|");chooseTheme(k,d);return;}
   if(D.lessoncopy){const [k,d]=D.lessoncopy.split("|"),txt=lessonText(k,d);if(navigator.share)navigator.share({title:"Cours de padel : "+k,text:txt}).catch(()=>{});else copyText(txt).then(ok=>toast(ok?"Plan copié : envoie-le à ton prof":"Copie impossible",!ok));return;}
+  if(D.accmode){state.accMode=D.accmode;Sync.status="";if(t.closest("#onboard"))renderOnboard();else renderApp({force:true});return;}
+  if(D.resend){const c=Sync.cfg();Sync.resend(c.pending||c.email).then(()=>toast("E-mail renvoyé")).catch(err=>toast("Échec : "+friendlyAuthErr(err.message),true));return;}
+  if(D.accnudge){data.meta.main.accNudgeOff=true;lsSave();renderApp({force:true});return;}
   if(D.wipe){confirmBtn(t,"Confirmer : tout effacer ?",()=>{try{Object.keys(localStorage).filter(k=>k.startsWith("padel")).forEach(k=>localStorage.removeItem(k));}catch(e){}location.hash="";location.reload();});return;}
   if(D.ob!=null){onboardClick(t);return;}
   // v3
@@ -179,16 +182,8 @@ document.addEventListener("submit",async e=>{
   if(F.settings){const s=S_();["start","side","theme","sex","tDefault","lessonDay","level"].forEach(k=>s[k]=v(k));s.name=v("name").trim().slice(0,30);s.voice=v("voice")==="1";["height","age","activity","deficit"].forEach(k=>s[k]=num(v(k)));
     if(s.start&&parse(s.start).getDay()!==1)toast("Conseil : choisis un lundi comme date de début",true);else toast("Réglages enregistrés");
     lsSave();applyTheme();state.week=null;renderApp({force:true});return;}
-  if(F.onboard){onboardSubmit(f);return;}
-  if(F.syncform){const act=(e.submitter&&e.submitter.value)||"in";const c=Sync.cfg();c.email=v("email").trim();Sync.set(c);
-    if(!cloudOn()){Sync.status="Comptes indisponibles pour le moment";paintSyncStatus();return;}
-    if(act==="recover"){if(!c.email){Sync.status="Indique ton e-mail";paintSyncStatus();return;}try{await Sync.recover(c.email);Sync.status="E-mail envoyé : suis le lien pour choisir un nouveau mot de passe.";}catch(err){Sync.status="Échec : "+err.message;}paintSyncStatus();return;}
-    if(!c.email||!v("pw")){Sync.status="Indique ton e-mail et ton mot de passe";paintSyncStatus();return;}
-    if(v("pw").length<6){Sync.status="Mot de passe : 6 caractères minimum";paintSyncStatus();return;}
-    Sync.status="Connexion…";paintSyncStatus();
-    try{if(act==="up"){const r=await Sync.signUp(c.email,v("pw"));if(r==="confirm"){Sync.status="Compte créé : confirme ton e-mail puis connecte-toi.";paintSyncStatus();return;}}else await Sync.signIn(c.email,v("pw"));Sync.status="Connecté";renderApp({force:true});toast("Compte connecté");}
-    catch(err){Sync.status="Échec : "+friendlyAuthErr(err.message);paintSyncStatus();}
-    return;}
+  if(F.onboard){onboardSubmit(f,e.submitter);return;}
+  if(F.syncform){accountSubmit(f,(e.submitter&&e.submitter.value)||"in");return;}
 });
 
 /* ---------- Glisser pour changer d'étape (mode séance) ---------- */

@@ -322,12 +322,20 @@ SUBS.bilan=()=>{const txt=bilanText(state.bilanDays);
 const LEVELS=["P25","P100","P250","P500","P1000","P1500","P2000"];
 const TDAY_OPTS=[["ven","Vendredi"],["sam","Samedi"],["dim","Dimanche"]];
 const opt=(arr,cur)=>arr.map(([v,l])=>`<option value="${esc(v)}" ${String(cur)===String(v)?"selected":""}>${esc(l)}</option>`).join("");
+function accountForm(ctx){const c=Sync.cfg(),up=(state.accMode||(c.pending?"in":"up"))==="up";
+  return `<form class="stack acc-form" data-syncform="1" data-ctx="${ctx}">
+   <div class="seg2" role="tablist"><button type="button" role="tab" data-accmode="up" aria-selected="${up}">Créer un compte</button><button type="button" role="tab" data-accmode="in" aria-selected="${!up}">J'ai déjà un compte</button></div>
+   <label>E-mail<input type="email" name="email" value="${esc(c.email||"")}" autocomplete="username" autocapitalize="off" autocorrect="off" required></label>
+   <label>Mot de passe${up?" (6 caractères minimum)":""}<input type="password" name="pw" autocomplete="${up?"new-password":"current-password"}" minlength="6" required></label>
+   ${up?`<label>Confirme le mot de passe<input type="password" name="pw2" autocomplete="new-password" minlength="6" required></label>`:""}
+   <div class="actions"><button class="btn" type="submit" name="act" value="${up?"up":"in"}">${up?"Créer mon compte":"Se connecter"}</button>${up?"":`<button class="linkbtn" type="submit" name="act" value="recover" formnovalidate>Mot de passe oublié ?</button>`}</div>
+   <p class="muted small" id="sync-status" role="status">${esc(Sync.status||"")}</p></form>`;}
+function pendingBox(){const c=Sync.cfg();if(!c.pending||Sync.connected())return "";
+  return `<div class="alert small"><b>Dernière étape :</b> clique sur le lien envoyé à ${esc(c.pending)} pour activer ton compte (pense aux spams), puis connecte-toi ci-dessous. <button class="linkbtn" type="button" data-resend="1">Renvoyer l'e-mail</button></div>`;}
 function accountCard(){if(!cloudOn())return "";const c=Sync.cfg(),con=Sync.connected();
-  return `<section class="card stack"><div><div class="eyebrow">Facultatif · sauvegarde automatique et plusieurs appareils</div><h2>Mon compte</h2></div>
-   <p class="small">Avec un compte, tes données sont sauvegardées en ligne et synchronisées entre ton téléphone et ton ordinateur. Sans compte, elles restent uniquement sur cet appareil.</p>
-   ${con?`<p><b>Connecté</b> : ${esc(c.email||"")}</p><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p><div class="actions"><button class="btn" type="button" data-sync="now">Synchroniser maintenant</button><button class="btn ghost" type="button" data-sync="out">Se déconnecter</button></div>`
-    :`<form class="stack" data-syncform="1"><div class="form-row"><label>E-mail<input type="email" name="email" value="${esc(c.email||"")}" autocomplete="username" autocapitalize="off"></label><label>Mot de passe<input type="password" name="pw" autocomplete="current-password" minlength="6"></label></div>
-     <div class="actions"><button class="btn" type="submit" name="act" value="in">Se connecter</button><button class="btn ghost" type="submit" name="act" value="up">Créer mon compte</button><button class="linkbtn" type="submit" name="act" value="recover">Mot de passe oublié ?</button></div><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p></form>`}
+  return `<section class="card stack" id="compte"><div><div class="eyebrow">Gratuit · facultatif</div><h2>Mon compte</h2></div>
+   ${con?`<p>Connecté avec <b>${esc(c.email||"")}</b>. Tes données sont sauvegardées en ligne et synchronisées sur tous tes appareils.</p><p class="muted small" id="sync-status">${esc(Sync.status||"")}</p><div class="actions"><button class="btn" type="button" data-sync="now">Synchroniser maintenant</button><button class="btn ghost" type="button" data-sync="out">Se déconnecter</button></div>`
+    :`<ul class="clean small acc-why"><li>Tes séances, pesées et tournois sauvegardés automatiquement</li><li>Le même programme sur ton téléphone et ton ordinateur</li><li>Rien de perdu si tu changes de téléphone</li></ul>${pendingBox()}${accountForm("settings")}`}
   </section>`;}
 SUBS.reglages=()=>{const s=S_(),con=Sync.connected();
   return `<form class="stack" data-settings="1">

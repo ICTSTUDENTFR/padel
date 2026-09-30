@@ -139,7 +139,7 @@ const Sync={
   cfg(){let c={};try{c=JSON.parse(localStorage.getItem("padel-sync")||"{}");}catch(e){}if(cloudOn()){c.url=APP_CONFIG.supabaseUrl;c.key=APP_CONFIG.supabaseAnonKey;}return c;},
   set(c){try{localStorage.setItem("padel-sync",JSON.stringify(c));}catch(e){}},
   connected(){const c=this.cfg();return cloudOn()&&!!(c.url&&c.key&&c.access&&c.userId);},
-  async recover(email){const c=this.cfg();const r=await fetch(this.base()+"/auth/v1/recover",{method:"POST",headers:{apikey:c.key,"Content-Type":"application/json"},body:JSON.stringify({email})});if(!r.ok)throw new Error("Erreur "+r.status);},
+  async recover(email){const c=this.cfg();const r=await fetch(this.base()+"/auth/v1/recover"+this.redirect(),{method:"POST",headers:{apikey:c.key,"Content-Type":"application/json"},body:JSON.stringify({email})});if(!r.ok)throw new Error("Erreur "+r.status);},
   status:"",
   _t:null,
   base(){return (this.cfg().url||"").replace(/\/+$/,"");},
@@ -151,8 +151,10 @@ const Sync={
     return j;
   },
   keep(j,email){const c=this.cfg();Object.assign(c,{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+(j.expires_in||3600)*1000,userId:j.user&&j.user.id,email:email||c.email});this.set(c);},
-  async signUp(email,pw){const j=await this.auth("signup",{email,password:pw});if(j.access_token){this.keep(j,email);await this.pull(true);return "ok";}return "confirm";},
-  async signIn(email,pw){const j=await this.auth("token?grant_type=password",{email,password:pw});this.keep(j,email);await this.pull(true);},
+  redirect(){return "?redirect_to="+encodeURIComponent(location.origin+location.pathname);},
+  async signUp(email,pw){const j=await this.auth("signup"+this.redirect(),{email,password:pw});if(j.access_token){this.keep(j,email);const c=this.cfg();delete c.pending;this.set(c);await this.pull(true);return "ok";}const c=this.cfg();c.email=email;c.pending=email;this.set(c);return "confirm";},
+  async resend(email){const c=this.cfg();const r=await fetch(this.base()+"/auth/v1/resend"+this.redirect(),{method:"POST",headers:{apikey:c.key,"Content-Type":"application/json"},body:JSON.stringify({type:"signup",email})});if(!r.ok)throw new Error("Erreur "+r.status);},
+  async signIn(email,pw){const j=await this.auth("token?grant_type=password",{email,password:pw});this.keep(j,email);const c=this.cfg();delete c.pending;this.set(c);await this.pull(true);},
   signOut(){const c=this.cfg();delete c.access;delete c.refresh;delete c.userId;delete c.exp;this.set(c);this.status="Déconnecté";},
   async token(){
     const c=this.cfg();if(!c.access)throw new Error("Non connecté");
@@ -181,7 +183,7 @@ const Sync={
       const row=rows&&rows[0];
       const remoteAt=row?new Date(row.updated_at).getTime():0,localAt=data.meta.main.updatedAt||0;
       if(row&&row.data&&(remoteAt>localAt||(first&&totalDone()===0&&remoteAt>0))){
-        COLLS.forEach(c=>{if(row.data[c])data[c]=row.data[c];});data.meta.main.updatedAt=remoteAt;
+        COLLS.forEach(c=>{if(row.data[c])data[c]=row.data[c];});normalize();data.meta.main.updatedAt=remoteAt;
         try{localStorage.setItem(LSK,JSON.stringify(data));}catch(e){}
         this.status="Données récupérées depuis ton compte";toast("Données synchronisées");renderApp();
       }else if(!row||localAt>remoteAt){await this.push();return;}
